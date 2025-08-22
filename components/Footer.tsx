@@ -1,6 +1,11 @@
 import React from 'react';
+import { Page } from '../types';
 
-const Footer: React.FC = () => {
+interface FooterProps {
+    onNavigate: (page: Page) => void;
+}
+
+const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   return (
     <footer className="bg-dark text-white mt-12">
       <div className="container mx-auto px-4 py-8">
@@ -12,10 +17,10 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2">
-              <li><a href="#" className="text-gray-300 hover:text-primary transition">About Us</a></li>
-              <li><a href="#" className="text-gray-300 hover:text-primary transition">Contact</a></li>
-              <li><a href="#" className="text-gray-300 hover:text-primary transition">FAQ</a></li>
-              <li><a href="#" className="text-gray-300 hover:text-primary transition">Privacy Policy</a></li>
+              <li><button onClick={() => onNavigate(Page.About)} className="text-gray-300 hover:text-primary transition">About Us</button></li>
+              <li><button onClick={() => onNavigate(Page.Contact)} className="text-gray-300 hover:text-primary transition">Contact</button></li>
+              <li><button onClick={() => onNavigate(Page.Contact)} className="text-gray-300 hover:text-primary transition">FAQ</button></li>
+              <li><button onClick={() => onNavigate(Page.PrivacyPolicy)} className="text-gray-300 hover:text-primary transition">Privacy Policy</button></li>
             </ul>
           </div>
           <div>

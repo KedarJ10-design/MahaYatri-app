@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect, useContext } from 'react';
-import { Chat } from '@google/ai';
+import React, { useState, useRef, useEffect } from 'react';
+import { Chat } from '@google/ai-sdk/ai';
 import { ai } from '../services/geminiService';
 import { ChatMessage, User } from '../types';
-import { AuthContext } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 
 const Chatbot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,7 +11,7 @@ const Chatbot: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const chatRef = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

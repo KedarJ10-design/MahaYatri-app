@@ -2,9 +2,18 @@ export enum Page {
   Home = 'HOME',
   Search = 'SEARCH',
   TripPlanner = 'TRIP_PLANNER',
-  Profile = 'PROFILE',
+  Profile = 'PROFILE', // Tourist Dashboard
   Explore = 'EXPLORE',
+  Chat = 'CHAT',
+  Itinerary = 'ITINERARY',
+  Admin = 'ADMIN',
+  GuideDashboard = 'GUIDE_DASHBOARD',
+  About = 'ABOUT',
+  Contact = 'CONTACT',
+  PrivacyPolicy = 'PRIVACY_POLICY',
 }
+
+export type UserRole = 'user' | 'guide' | 'admin';
 
 export interface User {
   id: string;
@@ -18,6 +27,8 @@ export interface User {
   };
   isPro: boolean;
   points: number;
+  unlockedGuideIds: string[];
+  role: UserRole;
 }
 
 export interface Guide {
@@ -31,8 +42,13 @@ export interface Guide {
   specialties: string[];
   bio: string;
   pricePerDay: number;
-  isVerified: boolean;
+  verificationStatus: 'pending' | 'verified' | 'rejected';
   gallery: string[];
+  contactInfo: {
+    phone: string;
+    email: string;
+  };
+  contactUnlockPrice: number;
 }
 
 export interface ItineraryDay {
@@ -58,11 +74,12 @@ export interface Booking {
   userId: string;
   guideId: string;
   startDate: string;
-  endDate: string;
+  endDate:string;
   guests: number;
   totalPrice: number;
   status: BookingStatus;
   pointsEarned: number;
+  hasBeenReviewed?: boolean;
 }
 
 export interface PlaceSuggestion {
@@ -106,4 +123,87 @@ export interface Reward {
     description: string;
     pointsRequired: number;
     icon: React.ReactNode;
+}
+
+// From Final Prompt - Hardened Schemas
+export interface Payment {
+  id: string;
+  orderId: string;
+  provider: 'razorpay' | 'google_play' | 'app_store';
+  amount: number;
+  currency: string;
+  status: 'created' | 'authorized' | 'captured' | 'failed';
+  gatewayResponse: any;
+  createdAt: any; // Firestore Timestamp
+}
+
+export interface GuideAccess {
+  id: string;
+  userRef: string; // doc path to user
+  guideRef: string; // doc path to guide
+  unlockedAt: any; // Firestore Timestamp
+  expiresAt?: any; // Firestore Timestamp
+  paymentRef: string; // doc path to payment
+}
+
+// New types for Direct Messaging
+export interface DirectMessage {
+  id: string;
+  conversationId: string;
+  senderId: string; // 'user-1' or 'guide-1'
+  text: string;
+  timestamp: number;
+  translatedText?: string;
+}
+
+export interface Conversation {
+  id: string;
+  guideId: string;
+  userId: string;
+  lastMessageTimestamp: number;
+  unreadCount: number;
+}
+
+// New type for Reviews
+export interface Review {
+  id: string;
+  guideId: string;
+  userId: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+// New Production-Grade Itinerary Type
+export interface TravelInfo {
+    from: string;
+    to: string;
+    distance_km: number;
+    duration_min: number;
+}
+
+export interface ItinerarySlot {
+    timeWindow: string;
+    place: {
+        id?: string;
+        name: string;
+        coords?: string;
+    };
+    activity: string;
+    notes: string;
+    estimated_cost: number;
+    travel: TravelInfo;
+}
+
+export interface ItineraryDayDetailed {
+    day: number;
+    date: string;
+    slots: ItinerarySlot[];
+    suggested_guide_ids?: string[];
+}
+
+export interface DetailedItinerary {
+    summary: string;
+    days: ItineraryDayDetailed[];
+    total_estimated_cost: number;
 }

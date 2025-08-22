@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { Itinerary, PlaceSuggestion, PlaceDetails, CostEstimate } from '../types';
+import { Itinerary, PlaceSuggestion, PlaceDetails, CostEstimate, DetailedItinerary } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
@@ -39,6 +39,57 @@ const itinerarySchema = {
   },
   required: ["destination", "duration", "itinerary"]
 };
+
+const detailedItinerarySchema = {
+  type: Type.OBJECT,
+  properties: {
+    summary: { type: Type.STRING, description: "A brief, engaging summary of the entire trip." },
+    days: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          day: { type: Type.INTEGER },
+          date: { type: Type.STRING, description: "Date in YYYY-MM-DD format. Assume today is 2024-08-01 for calculations." },
+          slots: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                timeWindow: { type: Type.STRING, description: "e.g., '9:00 AM - 1:00 PM'" },
+                place: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                  },
+                  required: ["name"],
+                },
+                activity: { type: Type.STRING, description: "A short description of the activity." },
+                notes: { type: Type.STRING, description: "A helpful tip or note for this activity." },
+                estimated_cost: { type: Type.NUMBER, description: "Cost in INR for one person." },
+                travel: {
+                  type: Type.OBJECT,
+                  properties: {
+                    from: { type: Type.STRING },
+                    to: { type: Type.STRING },
+                    distance_km: { type: Type.NUMBER },
+                    duration_min: { type: Type.NUMBER },
+                  },
+                  required: ["from", "to", "distance_km", "duration_min"],
+                },
+              },
+              required: ["timeWindow", "place", "activity", "notes", "estimated_cost", "travel"],
+            },
+          },
+        },
+        required: ["day", "date", "slots"],
+      },
+    },
+    total_estimated_cost: { type: Type.NUMBER, description: "The sum of all estimated_cost fields." },
+  },
+  required: ["summary", "days", "total_estimated_cost"],
+};
+
 
 const placeSuggestionsSchema = {
     type: Type.OBJECT,
@@ -132,6 +183,50 @@ export const generateItinerary = async (
   }
 };
 
+interface CustomItineraryParams {
+  days: number;
+  mustVisit: { name: string; destination: string }[];
+  interests?: string[];
+  budget?: number;
+}
+
+export const generateCustomItinerary = async (params: CustomItineraryParams): Promise<DetailedItinerary> => {
+  if (!API_KEY) throw new Error("Gemini API key is not configured.");
+  const primaryDestination = params.mustVisit[0]?.destination || 'Maharashtra';
+
+  // Constructing the USER_PROMPT JSON object
+  const userPrompt = {
+    origin: primaryDestination,
+    days: params.days,
+    interests: params.interests || ["heritage", "food", "nature"],
+    dates: { start: "2024-08-01", end: `2024-08-${String(params.days).padStart(2, '0')}` },
+    budget: { currency: "INR", per_person: params.budget || 15000 },
+    transport: ["car", "train"],
+    preferred_language: "en",
+    constraints: {
+      max_drive_hours_per_day: 4,
+      must_visit: params.mustVisit.map(p => `${p.name}, ${p.destination}`),
+    }
+  };
+
+  const prompt = `SYSTEM: You are an expert Maharashtra travel planner. Return JSON only that strictly adheres to the provided schema. The user's request is below. Create a logical and exciting itinerary.
+  
+  USER_PROMPT:
+  ${JSON.stringify(userPrompt, null, 2)}`;
+
+  try {
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { responseMimeType: 'application/json', responseSchema: detailedItinerarySchema, temperature: 0.7 },
+    });
+    return parseJsonResponse<DetailedItinerary>(response.text);
+  } catch (error) {
+    console.error("Error generating custom itinerary:", error);
+    throw new Error(`Failed to generate custom itinerary: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
 export const generatePlaceSuggestions = async (destination: string): Promise<PlaceSuggestion[]> => {
     if (!API_KEY) throw new Error("Gemini API key is not configured.");
     const prompt = `Provide a diverse list of tourist suggestions for ${destination}, Maharashtra. Include famous attractions, a hidden gem, a local restaurant, and a unique activity.`;
@@ -185,5 +280,21 @@ export const estimateTripCost = async (itinerary: Itinerary): Promise<CostEstima
     } catch (error) {
         console.error("Error estimating trip cost:", error);
         throw new Error(`Failed to estimate cost: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+};
+
+export const translateText = async (text: string, targetLanguage: string): Promise<string> => {
+    if (!API_KEY) throw new Error("Gemini API key is not configured.");
+    const prompt = `Translate the following text to ${targetLanguage}. Return only the translated text, without any introductory phrases, explanations, or quotation marks. The output should be the pure translation. Text to translate: "${text}"`;
+    
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        return response.text.trim();
+    } catch (error) {
+        console.error("Error translating text:", error);
+        throw new Error(`Failed to translate: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 };

@@ -1,30 +1,33 @@
 import React, { useState, useMemo } from 'react';
 import { Guide } from '../types';
-import { mockGuides } from '../services/mockData';
 import GuideCard from './GuideCard';
 import Input from './common/Input';
 
 interface SearchPageProps {
   onViewGuide: (guide: Guide) => void;
+  guides: Guide[];
 }
 
-const SearchPage: React.FC<SearchPageProps> = ({ onViewGuide }) => {
+const SearchPage: React.FC<SearchPageProps> = ({ onViewGuide, guides }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [location, setLocation] = useState('');
   const [rating, setRating] = useState(0);
   const [maxPrice, setMaxPrice] = useState(6000);
+  
+  const verifiedGuides = useMemo(() => guides.filter(g => g.verificationStatus === 'verified'), [guides]);
 
-  const allLocations = useMemo(() => [...new Set(mockGuides.map(g => g.location))], []);
+  const allLocations = useMemo(() => [...new Set(verifiedGuides.map(g => g.location))], [verifiedGuides]);
   const priceInfo = useMemo(() => {
-    const prices = mockGuides.map(g => g.pricePerDay);
+    if (verifiedGuides.length === 0) return { min: 0, max: 6000 };
+    const prices = verifiedGuides.map(g => g.pricePerDay);
     return {
         min: Math.min(...prices),
         max: Math.max(...prices),
     }
-  }, []);
+  }, [verifiedGuides]);
 
   const filteredGuides = useMemo(() => {
-    return mockGuides.filter(guide => {
+    return verifiedGuides.filter(guide => {
       const matchesSearch =
         guide.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         guide.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -34,7 +37,7 @@ const SearchPage: React.FC<SearchPageProps> = ({ onViewGuide }) => {
 
       return matchesSearch && matchesLocation && matchesRating && matchesPrice;
     });
-  }, [searchTerm, location, rating, maxPrice]);
+  }, [searchTerm, location, rating, maxPrice, verifiedGuides]);
 
   return (
     <div className="flex flex-col md:flex-row gap-8 animate-fade-in">

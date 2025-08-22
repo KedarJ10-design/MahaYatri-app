@@ -14,7 +14,7 @@ const GuideCard: React.FC<GuideCardProps> = ({ guide, onViewDetails }) => {
     <div className="bg-white dark:bg-dark-light rounded-xl shadow-lg overflow-hidden flex flex-col transform hover:-translate-y-2 transition-transform duration-300">
       <div className="relative">
         <img className="w-full h-56 object-cover" src={guide.avatarUrl} alt={guide.name} />
-        {guide.isVerified && (
+        {guide.verificationStatus === 'verified' && (
           <div className="absolute top-2 right-2">
             <Badge color="green">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">

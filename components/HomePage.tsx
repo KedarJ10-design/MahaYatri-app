@@ -1,15 +1,17 @@
 import React from 'react';
 import { Page, Guide } from '../types';
-import { mockGuides } from '../services/mockData';
 import Button from './common/Button';
 import GuideCard from './GuideCard';
 
 interface HomePageProps {
   onNavigate: (page: Page) => void;
   onViewGuide: (guide: Guide) => void;
+  guides: Guide[];
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onNavigate, onViewGuide }) => {
+const HomePage: React.FC<HomePageProps> = ({ onNavigate, onViewGuide, guides }) => {
+  const featuredGuides = guides.filter(g => g.verificationStatus === 'verified').slice(0, 4);
+  
   return (
     <div className="space-y-16 animate-fade-in">
       {/* Hero Section */}
@@ -33,7 +35,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate, onViewGuide }) => {
       <section>
         <h2 className="text-3xl font-bold mb-6 text-center text-dark dark:text-light">Featured Guides</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {mockGuides.slice(0, 4).map(guide => (
+          {featuredGuides.map(guide => (
             <GuideCard key={guide.id} guide={guide} onViewDetails={() => onViewGuide(guide)} />
           ))}
         </div>

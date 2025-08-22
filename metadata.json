@@ -1,0 +1,7 @@
+{
+  "name": "MahaYatri",
+  "description": "A web application that connects tourists with local guides in Maharashtra, featuring an AI-powered trip planner to generate custom itineraries.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

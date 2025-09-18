@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { User, Guide, Booking, BookingStatus, Page, Achievement, PlaceSuggestion, Reward, Review } from '../types';
+import { User, Guide, Booking, BookingStatus, Page, Achievement, PlaceSuggestion, Reward, Review, VendorBooking, Vendor } from '../types';
 import Button from './common/Button';
 import Badge from './Badge';
 import StarRating from './StarRating';
@@ -12,6 +12,8 @@ interface ProfilePageProps {
   guide: Guide | null;
   guides: Guide[];
   bookings: Booking[];
+  vendorBookings: VendorBooking[];
+  vendors: Vendor[];
   reviews: Review[];
   allUsers: User[];
   wishlist: PlaceSuggestion[];
@@ -91,7 +93,7 @@ const RewardCard: React.FC<{
 
     return (
         <div className={`p-5 rounded-lg flex items-center gap-5 border-2 ${canAfford ? 'bg-light dark:bg-dark' : 'bg-gray-100 dark:bg-dark-light opacity-70'}`}>
-            <div className={`p-4 rounded-full ${canAfford ? 'bg-secondary/20 text-secondary-dark' : 'bg-gray-200 text-gray-500 dark:bg-gray-600'}`}>
+            <div className={`p-4 rounded-full ${canAfford ? 'bg-secondary/20 text-secondary' : 'bg-gray-200 text-gray-500 dark:bg-gray-600'}`}>
                 {reward.icon}
             </div>
             <div className="flex-grow">
@@ -141,7 +143,31 @@ const BookingCard: React.FC<{ booking: Booking; guides: Guide[]; onOpenReviewMod
     )
 }
 
-const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers' | 'onBookGuide' | 'onUnlockGuide' | 'onStartChat'>> = ({ user, bookings, guides, wishlist, onNavigate, onToggleWishlist, onViewPlace, onOpenItineraryBuilder, onUpdateUser, onUpgrade, onOpenReviewModal, onRedeemReward, onApplyToBeGuide }) => {
+const VendorBookingCard: React.FC<{ booking: VendorBooking; vendors: Vendor[]; }> = ({ booking, vendors }) => {
+    const vendor = vendors.find(v => v.id === booking.vendorId);
+    if (!vendor) return null;
+
+    return (
+        <div className="bg-light dark:bg-dark p-4 rounded-lg shadow-md flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <img src={vendor.avatarUrl} alt={vendor.name} className="w-full sm:w-24 h-32 sm:h-24 rounded-md object-cover"/>
+            <div className="flex-grow">
+                <Badge color="yellow" >{vendor.type}</Badge>
+                <h4 className="text-xl font-bold mt-1">{vendor.name}</h4>
+                <p className="text-gray-600 dark:text-gray-400">{vendor.location}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {new Date(booking.date).toLocaleDateString()} at {booking.time} for {booking.guests} {booking.guests > 1 ? 'people' : 'person'}.
+                </p>
+            </div>
+            <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
+                 <Badge color={booking.status === BookingStatus.Upcoming ? 'green' : 'gray'}>{booking.status}</Badge>
+                 <Button variant="outline" className="py-2 px-4 text-sm mt-2">View Details</Button>
+            </div>
+        </div>
+    )
+}
+
+const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers' | 'onBookGuide' | 'onUnlockGuide' | 'onStartChat'>> = (props) => {
+  const { user, bookings, guides, vendorBookings, vendors, wishlist, onNavigate, onToggleWishlist, onViewPlace, onOpenItineraryBuilder, onUpdateUser, onUpgrade, onOpenReviewModal, onRedeemReward, onApplyToBeGuide } = props;
   const [activeTab, setActiveTab] = useState('upcoming');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editedUser, setEditedUser] = useState(user);
@@ -152,6 +178,7 @@ const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers
 
   const upcomingBookings = bookings.filter(b => b.status === BookingStatus.Upcoming);
   const pastBookings = bookings.filter(b => b.status === BookingStatus.Completed);
+  const upcomingReservations = vendorBookings.filter(b => b.status === BookingStatus.Upcoming);
 
   const achievements: Achievement[] = useMemo(() => [
         {
@@ -217,7 +244,7 @@ const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers
   const TabButton: React.FC<{tab: string; children: React.ReactNode}> = ({tab, children}) => (
     <button 
         onClick={() => setActiveTab(tab)}
-        className={`px-4 md:px-6 py-3 font-semibold rounded-t-lg transition-colors border-b-2 text-sm md:text-base ${activeTab === tab ? 'text-primary border-primary' : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-orange-400'}`}
+        className={`px-4 md:px-6 py-3 font-semibold rounded-t-lg transition-colors border-b-2 text-sm md:text-base ${activeTab === tab ? 'text-primary border-primary' : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-sky-400'}`}
     >
         {children}
     </button>
@@ -282,6 +309,7 @@ const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers
         <div className="border-b border-gray-200 dark:border-gray-700">
              <div className="flex flex-wrap space-x-0 md:space-x-4">
                 <TabButton tab="upcoming">Upcoming Trips ({upcomingBookings.length})</TabButton>
+                <TabButton tab="reservations">Reservations ({upcomingReservations.length})</TabButton>
                 <TabButton tab="past">Past Bookings ({pastBookings.length})</TabButton>
                 <TabButton tab="wishlist">My Wishlist ({wishlist.length})</TabButton>
                 <TabButton tab="achievements">Achievements</TabButton>
@@ -300,6 +328,19 @@ const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers
                             <h3 className="text-xl font-semibold">No upcoming trips</h3>
                             <p className="text-gray-500 dark:text-gray-400 mt-2">Time to plan your next adventure!</p>
                             <Button onClick={() => onNavigate(Page.Search)} className="mt-4">Find a Guide</Button>
+                        </div>
+                    )}
+                </div>
+            )}
+            {activeTab === 'reservations' && (
+                <div className="space-y-4 animate-fade-in">
+                    {upcomingReservations.length > 0 ? (
+                        upcomingReservations.map(b => <VendorBookingCard key={b.id} booking={b} vendors={vendors} />)
+                    ) : (
+                        <div className="text-center py-8">
+                            <h3 className="text-xl font-semibold">No upcoming reservations</h3>
+                            <p className="text-gray-500 dark:text-gray-400 mt-2">Explore local eateries and book a table!</p>
+                            <Button onClick={() => onNavigate(Page.Vendors)} className="mt-4">Find Vendors</Button>
                         </div>
                     )}
                 </div>

@@ -3,15 +3,40 @@ import Button from './common/Button';
 import { useAuth } from '../contexts/AuthContext';
 import Input from './common/Input';
 import Spinner from './common/Spinner';
+import { mockAdminUser, mockGuideUser, mockTouristUser } from '../services/mockData';
+
+const DemoUserCard: React.FC<{
+  role: string;
+  email: string;
+  icon: React.ReactNode;
+  onSelect: (email: string) => void;
+}> = ({ role, email, icon, onSelect }) => (
+  <button
+    type="button"
+    onClick={() => onSelect(email)}
+    className="p-4 w-full text-left bg-light dark:bg-dark border border-gray-200 dark:border-gray-700 rounded-lg flex items-center gap-4 hover:bg-primary/10 dark:hover:bg-primary/20 hover:border-primary/50 transition-all transform hover:scale-105"
+  >
+    <div className="text-primary bg-primary/10 p-3 rounded-lg">{icon}</div>
+    <div>
+      <p className="font-bold text-dark dark:text-light">{role}</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400">{email}</p>
+    </div>
+  </button>
+);
 
 const LoginPage: React.FC = () => {
   const [isLoginView, setIsLoginView] = useState(true);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] =useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   
   const { signIn, signUp, loading, error, setError } = useAuth();
+
+  const handleDemoSelect = (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword('password123');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,10 +63,9 @@ const LoginPage: React.FC = () => {
       <div className="relative z-10 bg-white dark:bg-dark-light w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden grid md:grid-cols-2 animate-fade-in">
         {/* Info Panel */}
         <div 
-          className="hidden md:block relative p-12 text-white bg-cover bg-center" 
-          style={{ backgroundImage: "url('https://picsum.photos/seed/maharashtra-culture/800/1200')" }}
+          className="hidden md:block relative p-12 text-white bg-gradient-to-br from-primary via-orange-500 to-accent animate-gradient-bg"
+          style={{ backgroundSize: '200% 200%' }}
         >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-accent/80"></div>
             <div className="relative z-10 flex flex-col justify-between h-full">
                 <div>
                     <div className="flex items-center space-x-2">
@@ -100,14 +124,13 @@ const LoginPage: React.FC = () => {
             </p>
 
             {isLoginView && (
-              <div className="mt-8 p-4 bg-light dark:bg-dark border border-gray-200 dark:border-gray-700 rounded-lg">
-                <h4 className="font-bold text-center text-dark dark:text-light mb-2 font-heading">Demo Accounts</h4>
-                <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-3">Use password: <code className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded">password123</code> for all demo accounts.</p>
-                <ul className="text-sm space-y-2 text-gray-600 dark:text-gray-300">
-                  <li><strong>Tourist:</strong> <code className="text-primary">priya.sharma@example.com</code></li>
-                  <li><strong>Admin:</strong> <code className="text-primary">admin@example.com</code></li>
-                  <li><strong>Guide:</strong> <code className="text-primary">rohan.patil@example.com</code></li>
-                </ul>
+              <div className="mt-6">
+                <p className="text-center text-xs text-gray-500 dark:text-gray-400 mb-3">Or click a demo account to log in (password: <code className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded">password123</code>)</p>
+                <div className="space-y-2">
+                   <DemoUserCard role="Tourist" email={mockTouristUser.email} onSelect={handleDemoSelect} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.653-.28-1.25-1.44-2.143M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 0c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4z" /></svg>} />
+                   <DemoUserCard role="Guide" email={mockGuideUser.email} onSelect={handleDemoSelect} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 14l9-5-9-5-9 5 9 5z" /><path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222 4 2.222V20M12 12L4 7l8-4 8 4-8 5z" /></svg>} />
+                   <DemoUserCard role="Admin" email={mockAdminUser.email} onSelect={handleDemoSelect} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
+                </div>
               </div>
             )}
         </div>

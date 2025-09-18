@@ -98,10 +98,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const storage = rememberMe ? localStorage : sessionStorage;
         storage.setItem('mockUser', JSON.stringify(mockUser));
         setUser(mockUser);
-        setLoading(false);
       } catch (e) {
          setError('Failed to create a demo session. Please try again.');
-         setLoading(false);
+      } finally {
+        setLoading(false);
       }
       return;
     }
@@ -155,22 +155,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (isMockUser) {
         localStorage.removeItem('mockUser');
         sessionStorage.removeItem('mockUser');
-        window.location.reload();
+        setUser(null);
       } else {
         await auth.signOut();
-        setUser(null);
-        setLoading(false);
+        // The onAuthStateChanged listener will set the user to null
       }
-    } catch (err: any)
-{
+    } catch (err: any) {
       setError(err.message);
-      setLoading(false);
       throw err;
+    } finally {
+      setLoading(false);
     }
   };
 
   const updateUser = async (updatedData: Partial<User>) => {
     if (!user) throw new Error("No user is signed in to update.");
+    
+    // Handle mock user update in local/session storage
+    const mockUserSession = localStorage.getItem('mockUser') || sessionStorage.getItem('mockUser');
+    if (mockUserSession) {
+        const updatedUser = { ...user, ...updatedData };
+        const storage = localStorage.getItem('mockUser') ? localStorage : sessionStorage;
+        storage.setItem('mockUser', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        return;
+    }
+
+    // Handle real user update in Firestore
     try {
       const userDocRef = db.collection('users').doc(user.id);
       await userDocRef.update(updatedData);

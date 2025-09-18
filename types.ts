@@ -13,6 +13,7 @@ export enum Page {
   PrivacyPolicy = 'PRIVACY_POLICY',
   Vendors = 'VENDORS',
   Stays = 'STAYS',
+  FAQ = 'FAQ',
 }
 
 export type UserRole = 'user' | 'guide' | 'admin';
@@ -105,6 +106,30 @@ export interface Booking {
   pointsEarned: number;
   hasBeenReviewed?: boolean;
 }
+
+export interface StayBooking {
+  id: string;
+  userId: string;
+  stayId: string;
+  checkInDate: string;
+  checkOutDate: string;
+  guests: number;
+  rooms: number;
+  totalPrice: number;
+  status: BookingStatus;
+}
+
+export interface VendorBooking {
+  id: string;
+  userId: string;
+  vendorId: string;
+  date: string;
+  time: string;
+  guests: number;
+  specialRequest?: string;
+  status: BookingStatus;
+}
+
 
 export interface PlaceSuggestion {
   name: string;

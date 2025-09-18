@@ -19,27 +19,6 @@ const parseJsonResponse = <T>(jsonText: string): T => {
     }
 };
 
-const itinerarySchema = {
-  type: Type.OBJECT,
-  properties: {
-    destination: { type: Type.STRING },
-    duration: { type: Type.INTEGER },
-    itinerary: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          day: { type: Type.INTEGER },
-          title: { type: Type.STRING },
-          activities: { type: Type.ARRAY, items: { type: Type.STRING } },
-        },
-        required: ["day", "title", "activities"]
-      }
-    }
-  },
-  required: ["destination", "duration", "itinerary"]
-};
-
 const detailedItinerarySchema = {
   type: Type.OBJECT,
   properties: {
@@ -85,7 +64,7 @@ const detailedItinerarySchema = {
         required: ["day", "date", "slots"],
       },
     },
-    total_estimated_cost: { type: Type.NUMBER, description: "The sum of all estimated_cost fields." },
+    total_estimated_cost: { type: Type.NUMBER, description: "The sum of all estimated_cost fields for the whole group." },
   },
   required: ["summary", "days", "total_estimated_cost"],
 };
@@ -162,32 +141,14 @@ const costEstimationSchema = {
 };
 
 
-export const generateItinerary = async (
-  destination: string,
-  days: number,
-  interests: string
-): Promise<Itinerary> => {
-  if (!API_KEY) throw new Error("Gemini API key is not configured.");
-  const prompt = `Create a detailed ${days}-day travel itinerary for ${destination}, Maharashtra, focusing on ${interests}.`;
-
-  try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: { responseMimeType: 'application/json', responseSchema: itinerarySchema, temperature: 0.7, },
-    });
-    return parseJsonResponse<Itinerary>(response.text);
-  } catch (error) {
-    console.error("Error generating itinerary:", error);
-    throw new Error(`Failed to generate itinerary: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-};
-
 interface CustomItineraryParams {
   days: number;
   mustVisit: { name: string; destination: string }[];
   interests?: string[];
-  budget?: number;
+  adults: number;
+  children: number;
+  seniors: number;
+  budgetStyle: 'budget' | 'mid-range' | 'luxury';
 }
 
 export const generateCustomItinerary = async (params: CustomItineraryParams): Promise<DetailedItinerary> => {
@@ -196,20 +157,25 @@ export const generateCustomItinerary = async (params: CustomItineraryParams): Pr
 
   // Constructing the USER_PROMPT JSON object
   const userPrompt = {
-    origin: primaryDestination,
+    destination: primaryDestination,
     days: params.days,
+    travelers: {
+        adults: params.adults,
+        children: params.children,
+        seniors: params.seniors,
+    },
+    budget_style: params.budgetStyle,
     interests: params.interests || ["heritage", "food", "nature"],
-    dates: { start: "2024-08-01", end: `2024-08-${String(params.days).padStart(2, '0')}` },
-    budget: { currency: "INR", per_person: params.budget || 15000 },
-    transport: ["car", "train"],
-    preferred_language: "en",
-    constraints: {
-      max_drive_hours_per_day: 4,
-      must_visit: params.mustVisit.map(p => `${p.name}, ${p.destination}`),
-    }
+    must_visit_places: params.mustVisit.map(p => `${p.name}, ${p.destination}`),
   };
 
-  const prompt = `SYSTEM: You are an expert Maharashtra travel planner. Return JSON only that strictly adheres to the provided schema. The user's request is below. Create a logical and exciting itinerary.
+  const prompt = `SYSTEM: You are an expert Maharashtra travel planner. Your response must be in JSON format and strictly adhere to the provided schema. Create a logical, exciting, and practical itinerary based on the user's request.
+
+  Key Instructions:
+  1.  **Group Composition**: If children are present, include child-friendly activities. If seniors are present, prioritize accessible locations and a relaxed pace.
+  2.  **Budget**: The chosen 'budget_style' must significantly influence the type of activities, dining, and travel suggestions. 'budget' should focus on free activities and street food, while 'luxury' should include fine dining and premium experiences.
+  3.  **Costing**: The 'estimated_cost' for each slot should be PER PERSON. The final 'total_estimated_cost' MUST be the grand total for the ENTIRE group (all adults, children, and seniors combined).
+  4.  **Travel**: Ensure travel between slots is logical and account for travel time. 'from' should be the previous slot's place name, and 'to' should be the current slot's place name.
   
   USER_PROMPT:
   ${JSON.stringify(userPrompt, null, 2)}`;
@@ -218,7 +184,7 @@ export const generateCustomItinerary = async (params: CustomItineraryParams): Pr
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
-      config: { responseMimeType: 'application/json', responseSchema: detailedItinerarySchema, temperature: 0.7 },
+      config: { responseMimeType: 'application/json', responseSchema: detailedItinerarySchema, temperature: 0.8 },
     });
     return parseJsonResponse<DetailedItinerary>(response.text);
   } catch (error) {
@@ -262,10 +228,15 @@ export const generatePlaceDetails = async (placeName: string, destination: strin
     }
 };
 
-export const estimateTripCost = async (itinerary: Itinerary): Promise<CostEstimate> => {
+export const estimateTripCost = async (itinerary: DetailedItinerary): Promise<CostEstimate> => {
     if (!API_KEY) throw new Error("Gemini API key is not configured.");
-    const itineraryString = itinerary.itinerary.map(day => `Day ${day.day}: ${day.activities.join(', ')}`).join('\n');
-    const prompt = `Based on the following ${itinerary.duration}-day itinerary for ${itinerary.destination}, provide a reasonable, mid-range budget estimate for a solo traveler in INR. Break down the cost into four categories: accommodation, food, local transport, and activities.
+    
+    // Create a simplified text representation of the itinerary for the prompt
+    const itineraryString = itinerary.days.map(day => 
+        `Day ${day.day}: ${day.slots.map(slot => slot.place.name).join(' -> ')}`
+    ).join('\n');
+
+    const prompt = `Based on the following itinerary for ${itinerary.days.length} days, provide a reasonable, mid-range budget estimate for a solo traveler in INR. Break down the cost into four categories: accommodation, food, local transport, and activities.
     
     Itinerary:
     ${itineraryString}`;

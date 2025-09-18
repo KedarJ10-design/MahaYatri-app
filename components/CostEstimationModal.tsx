@@ -1,11 +1,13 @@
+
+
 import React, { useState, useEffect } from 'react';
-import { Itinerary, CostEstimate } from '../types';
+import { DetailedItinerary, CostEstimate } from '../types';
 import { estimateTripCost } from '../services/geminiService';
 import Button from './common/Button';
 import SkeletonLoader from './common/SkeletonLoader';
 
 interface CostEstimationModalProps {
-  itinerary: Itinerary;
+  itinerary: DetailedItinerary;
   onClose: () => void;
 }
 
@@ -93,7 +95,7 @@ const CostEstimationModal: React.FC<CostEstimationModalProps> = ({ itinerary, on
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <div>
             <h2 id="cost-title" className="text-2xl font-bold font-heading text-dark dark:text-light">Trip Cost Estimate</h2>
-            <p className="text-gray-500 dark:text-gray-400">{itinerary.destination} - {itinerary.duration} Days</p>
+            <p className="text-gray-500 dark:text-gray-400">{itinerary.days.length} Day Trip</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-lighter" aria-label="Close modal">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>

@@ -7,9 +7,10 @@ import Button from './common/Button';
 interface StayCardProps {
   stay: Stay;
   onViewDetails: () => void;
+  onBookStay: () => void;
 }
 
-const StayCard: React.FC<StayCardProps> = ({ stay, onViewDetails }) => {
+const StayCard: React.FC<StayCardProps> = ({ stay, onViewDetails, onBookStay }) => {
   return (
     <div className="bg-white dark:bg-dark-light rounded-xl shadow-lg overflow-hidden flex flex-col transform hover:-translate-y-2 transition-transform duration-300">
       <div className="relative">
@@ -43,9 +44,12 @@ const StayCard: React.FC<StayCardProps> = ({ stay, onViewDetails }) => {
             </div>
             <p className="font-bold text-lg text-primary">₹{stay.pricePerNight}<span className="text-sm font-normal text-gray-500 dark:text-gray-400">/night</span></p>
         </div>
-        <div className="mt-auto">
-            <Button onClick={onViewDetails} className="w-full" variant="outline">
-                View Details
+        <div className="mt-auto grid grid-cols-2 gap-2">
+            <Button onClick={onViewDetails} variant="outline">
+                Details
+            </Button>
+            <Button onClick={onBookStay}>
+                Book Stay
             </Button>
         </div>
       </div>

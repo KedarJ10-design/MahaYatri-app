@@ -7,9 +7,10 @@ import Button from './common/Button';
 interface VendorCardProps {
   vendor: Vendor;
   onViewDetails: () => void;
+  onBookVendor: (vendor: Vendor) => void;
 }
 
-const VendorCard: React.FC<VendorCardProps> = ({ vendor, onViewDetails }) => {
+const VendorCard: React.FC<VendorCardProps> = ({ vendor, onViewDetails, onBookVendor }) => {
   return (
     <div className="bg-white dark:bg-dark-light rounded-xl shadow-lg overflow-hidden flex flex-col transform hover:-translate-y-2 transition-transform duration-300">
       <div className="relative">
@@ -40,10 +41,15 @@ const VendorCard: React.FC<VendorCardProps> = ({ vendor, onViewDetails }) => {
             <Badge key={c} color='yellow'>{c}</Badge>
           ))}
         </div>
-        <div className="mt-auto">
-            <Button onClick={onViewDetails} className="w-full" variant="outline">
-                View Details
+        <div className="mt-auto grid grid-cols-2 gap-2">
+            <Button onClick={onViewDetails} variant="outline">
+                Details
             </Button>
+             {vendor.verificationStatus === 'verified' && (
+                <Button onClick={() => onBookVendor(vendor)}>
+                    Book Now
+                </Button>
+            )}
         </div>
       </div>
     </div>

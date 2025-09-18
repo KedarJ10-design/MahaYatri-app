@@ -22,7 +22,7 @@ const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({ className = '', count =
     const isLast = i === count - 1;
     const widthClass = type === 'text' && !isLast ? '' : (type === 'text' ? 'w-5/6' : '');
     return (
-       <div key={i} className={`bg-gray-200 dark:bg-dark-lighter animate-pulse ${getSkeletonClass(type)} ${widthClass} ${className}`} />
+       <div key={i} className={`bg-gray-200 dark:bg-dark-lighter animate-pulse-subtle ${getSkeletonClass(type)} ${widthClass} ${className}`} />
     );
   });
   

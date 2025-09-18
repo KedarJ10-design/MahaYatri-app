@@ -24,7 +24,7 @@ const ProFeature: React.FC<{ title: string; description: string }> = ({ title, d
 const UpgradeModal: React.FC<UpgradeModalProps> = ({ onClose, onUpgrade }) => {
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"
+      className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -38,7 +38,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ onClose, onUpgrade }) => {
             <div className="flex justify-center mb-2">
                 <Badge color="yellow">MahaYatri PRO</Badge>
             </div>
-          <h2 id="upgrade-title" className="text-2xl font-bold text-dark dark:text-light">Unlock Your Ultimate Travel Companion</h2>
+          <h2 id="upgrade-title" className="text-2xl font-bold font-heading text-dark dark:text-light">Unlock Your Ultimate Travel Companion</h2>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Upgrade to Pro for exclusive features and a smarter travel experience.</p>
         </div>
         

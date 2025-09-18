@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { User, Guide, Booking, BookingStatus, Page, Achievement, PlaceSuggestion, Reward, Review } from '../types';
 import Button from './common/Button';
 import Badge from './Badge';
 import StarRating from './StarRating';
 import Input from './common/Input';
 import Spinner from './common/Spinner';
+import GuideApplicationModal from './GuideApplicationModal';
 
 interface ProfilePageProps {
   user: User;
@@ -24,6 +25,8 @@ interface ProfilePageProps {
   onUnlockGuide: (guide: Guide) => Promise<void>;
   onStartChat: (guideId: string) => void;
   onOpenReviewModal: (booking: Booking) => void;
+  onRedeemReward: (reward: Reward) => void;
+  onApplyToBeGuide: (applicationData: Omit<Guide, 'id' | 'name' | 'avatarUrl' | 'verificationStatus' | 'rating' | 'reviewCount'>) => void;
 }
 
 const mockRewards: Reward[] = [
@@ -77,11 +80,18 @@ const AchievementCard: React.FC<{ achievement: Achievement }> = ({ achievement }
     </div>
 );
 
-const RewardCard: React.FC<{ reward: Reward; userPoints: number }> = ({ reward, userPoints }) => {
-    const canRedeem = userPoints >= reward.pointsRequired;
+const RewardCard: React.FC<{ 
+    reward: Reward; 
+    userPoints: number;
+    isRedeemed: boolean;
+    onRedeem: (reward: Reward) => void;
+}> = ({ reward, userPoints, isRedeemed, onRedeem }) => {
+    const canAfford = userPoints >= reward.pointsRequired;
+    const canRedeem = canAfford && !isRedeemed;
+
     return (
-        <div className={`p-5 rounded-lg flex items-center gap-5 border-2 ${canRedeem ? 'bg-light dark:bg-dark' : 'bg-gray-100 dark:bg-dark-light opacity-70'}`}>
-            <div className={`p-4 rounded-full ${canRedeem ? 'bg-secondary/20 text-secondary-dark' : 'bg-gray-200 text-gray-500 dark:bg-gray-600'}`}>
+        <div className={`p-5 rounded-lg flex items-center gap-5 border-2 ${canAfford ? 'bg-light dark:bg-dark' : 'bg-gray-100 dark:bg-dark-light opacity-70'}`}>
+            <div className={`p-4 rounded-full ${canAfford ? 'bg-secondary/20 text-secondary-dark' : 'bg-gray-200 text-gray-500 dark:bg-gray-600'}`}>
                 {reward.icon}
             </div>
             <div className="flex-grow">
@@ -89,7 +99,13 @@ const RewardCard: React.FC<{ reward: Reward; userPoints: number }> = ({ reward, 
                 <p className="text-gray-600 dark:text-gray-400 text-sm">{reward.description}</p>
                 <p className="font-bold text-primary mt-1">{reward.pointsRequired.toLocaleString()} PTS</p>
             </div>
-            <Button disabled={!canRedeem} className="py-2 px-4 text-sm">Redeem</Button>
+            <Button 
+                onClick={() => onRedeem(reward)} 
+                disabled={!canRedeem} 
+                className="py-2 px-4 text-sm w-28"
+            >
+                {isRedeemed ? 'Redeemed' : 'Redeem'}
+            </Button>
         </div>
     );
 };
@@ -125,11 +141,13 @@ const BookingCard: React.FC<{ booking: Booking; guides: Guide[]; onOpenReviewMod
     )
 }
 
-const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers' | 'onBookGuide' | 'onUnlockGuide' | 'onStartChat'>> = ({ user, bookings, guides, wishlist, onNavigate, onToggleWishlist, onViewPlace, onOpenItineraryBuilder, onUpdateUser, onUpgrade, onOpenReviewModal }) => {
+const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers' | 'onBookGuide' | 'onUnlockGuide' | 'onStartChat'>> = ({ user, bookings, guides, wishlist, onNavigate, onToggleWishlist, onViewPlace, onOpenItineraryBuilder, onUpdateUser, onUpgrade, onOpenReviewModal, onRedeemReward, onApplyToBeGuide }) => {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editedUser, setEditedUser] = useState(user);
   const [selectedPlaces, setSelectedPlaces] = useState<PlaceSuggestion[]>([]);
+  const [isApplyingForGuide, setIsApplyingForGuide] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
   const upcomingBookings = bookings.filter(b => b.status === BookingStatus.Upcoming);
@@ -169,6 +187,20 @@ const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers
     setEditedUser(prev => ({...prev, emergencyContact: { ...prev.emergencyContact, [name]: value }}));
   }
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditedUser(prev => ({ ...prev, avatarUrl: reader.result as string }));
+        if (!isEditingProfile) {
+          setIsEditingProfile(true);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSaveChanges = () => {
     onUpdateUser(editedUser);
     setIsEditingProfile(false);
@@ -192,15 +224,36 @@ const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers
   );
 
   return (
-    <div className="animate-fade-in">
-        <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 mb-8 bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
-            <img src={user.avatarUrl} alt={user.name} className="w-28 h-28 rounded-full border-4 border-primary object-cover" />
+    <div className="animate-fade-in space-y-8">
+        <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleAvatarChange}
+            accept="image/png, image/jpeg"
+            className="hidden"
+            aria-hidden="true"
+        />
+        <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
+            <div className="relative group flex-shrink-0">
+                <img src={editedUser.avatarUrl} alt={editedUser.name} className="w-28 h-28 rounded-full border-4 border-primary object-cover" />
+                <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center rounded-full transition-opacity duration-300 cursor-pointer"
+                    aria-label="Change profile picture"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+            </div>
             <div className="text-center sm:text-left">
                 <div className="flex items-center gap-3 justify-center sm:justify-start">
-                  <h1 className="text-4xl font-bold">{user.name}</h1>
+                  <h1 className="text-4xl font-bold">{editedUser.name}</h1>
                   {user.isPro && <Badge color="yellow">PRO</Badge>}
                 </div>
-                <p className="text-lg text-gray-500 dark:text-gray-400">{user.email}</p>
+                <p className="text-lg text-gray-500 dark:text-gray-400">{editedUser.email}</p>
                  <div className="mt-2 flex items-center gap-4 justify-center sm:justify-start">
                     <div className="flex items-center font-semibold text-secondary">
                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1V3a1 1 0 112 0v1h2a1 1 0 110 2h-2v1a1 1 0 11-2 0V6H6a1 1 0 01-1-1V3a1 1 0 011-1zm10 4a1 1 0 011 1v6a1 1 0 11-2 0V7a1 1 0 011-1zM5 10a1 1 0 011 1v6a1 1 0 11-2 0v-6a1 1 0 011-1z" clipRule="evenodd" /></svg>
@@ -211,6 +264,21 @@ const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers
             </div>
         </div>
         
+        {user.role === 'user' && !guides.some(g => g.id === user.id) && (
+            user.hasPendingApplication ? (
+                <section className="bg-yellow-50 dark:bg-yellow-900/30 p-6 rounded-2xl shadow-md text-center border-l-4 border-yellow-400">
+                    <h3 className="text-2xl font-bold text-yellow-800 dark:text-yellow-200">Application Submitted!</h3>
+                    <p className="text-yellow-700 dark:text-yellow-300 mt-2">Your application to become a guide is under review. We'll notify you once it's processed.</p>
+                </section>
+            ) : (
+                <section className="bg-light dark:bg-dark p-6 rounded-2xl shadow-md text-center">
+                    <h3 className="text-2xl font-bold">Want to be a local expert?</h3>
+                    <p className="text-gray-500 dark:text-gray-400 mt-2 mb-4">Share your knowledge of Maharashtra and earn by becoming a verified guide.</p>
+                    <Button onClick={() => setIsApplyingForGuide(true)}>Become a Guide</Button>
+                </section>
+            )
+        )}
+
         <div className="border-b border-gray-200 dark:border-gray-700">
              <div className="flex flex-wrap space-x-0 md:space-x-4">
                 <TabButton tab="upcoming">Upcoming Trips ({upcomingBookings.length})</TabButton>
@@ -285,7 +353,18 @@ const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers
             )}
             {activeTab === 'rewards' && (
                  <div className="animate-fade-in space-y-4">
-                    {mockRewards.map(reward => <RewardCard key={reward.id} reward={reward} userPoints={user.points} />)}
+                    {mockRewards.map(reward => {
+                        const isRedeemed = user.redeemedRewardIds.includes(reward.id);
+                        return (
+                            <RewardCard 
+                                key={reward.id} 
+                                reward={reward} 
+                                userPoints={user.points}
+                                isRedeemed={isRedeemed}
+                                onRedeem={onRedeemReward}
+                            />
+                        );
+                    })}
                  </div>
             )}
             {activeTab === 'profile' && (
@@ -314,6 +393,15 @@ const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers
                  </div>
             )}
         </div>
+        {isApplyingForGuide && (
+            <GuideApplicationModal 
+                onClose={() => setIsApplyingForGuide(false)}
+                onApply={(data) => {
+                    onApplyToBeGuide(data);
+                    setIsApplyingForGuide(false);
+                }}
+            />
+        )}
     </div>
   );
 };

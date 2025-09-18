@@ -11,9 +11,20 @@ export enum Page {
   About = 'ABOUT',
   Contact = 'CONTACT',
   PrivacyPolicy = 'PRIVACY_POLICY',
+  Vendors = 'VENDORS',
+  Stays = 'STAYS',
 }
 
 export type UserRole = 'user' | 'guide' | 'admin';
+
+export interface Verifiable {
+  id: string;
+  name: string;
+  location: string;
+  avatarUrl: string;
+  gallery: string[];
+  verificationStatus: 'pending' | 'verified' | 'rejected';
+}
 
 export interface User {
   id: string;
@@ -29,26 +40,39 @@ export interface User {
   points: number;
   unlockedGuideIds: string[];
   role: UserRole;
+  redeemedRewardIds: string[];
+  status?: 'active' | 'suspended';
+  hasPendingApplication?: boolean;
 }
 
-export interface Guide {
-  id: string;
-  name: string;
-  location: string;
-  avatarUrl: string;
+export interface Guide extends Verifiable {
   rating: number;
   reviewCount: number;
   languages: string[];
   specialties: string[];
   bio: string;
   pricePerDay: number;
-  verificationStatus: 'pending' | 'verified' | 'rejected';
-  gallery: string[];
   contactInfo: {
     phone: string;
     email: string;
   };
   contactUnlockPrice: number;
+}
+
+export interface Vendor extends Verifiable {
+  type: 'Restaurant' | 'Street Food' | 'Cafe';
+  cuisine: string[];
+  rating: number;
+  reviewCount: number;
+  priceRange: '$' | '$$' | '$$$';
+}
+
+export interface Stay extends Verifiable {
+    type: 'Hotel' | 'Homestay' | 'Resort';
+    rating: number;
+    reviewCount: number;
+    pricePerNight: number;
+    amenities: string[];
 }
 
 export interface ItineraryDay {

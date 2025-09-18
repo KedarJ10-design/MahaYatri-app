@@ -1,14 +1,19 @@
-import React, { useMemo } from 'react';
-import { User, Guide, Booking, BookingStatus } from '../types';
+import React, { useMemo, useState } from 'react';
+import { User, Guide, Booking, BookingStatus, Vendor, Stay } from '../types';
 import Button from './common/Button';
 import Badge from './Badge';
 import StarRating from './StarRating';
+import EarningsChart from './EarningsChart';
+import AvailabilityCalendar from './AvailabilityCalendar';
+
 
 interface GuideDashboardPageProps {
   guideUser: User;
   guides: Guide[];
   bookings: Booking[];
   allUsers: User[];
+  vendors: Vendor[];
+  stays: Stay[];
 }
 
 const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode }> = ({ title, value, icon }) => (
@@ -18,16 +23,16 @@ const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode }
         </div>
         <div>
             <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">{title}</p>
-            <p className="text-2xl font-bold text-dark dark:text-light">{value}</p>
+            <p className="text-2xl font-bold font-heading text-dark dark:text-light">{value}</p>
         </div>
     </div>
 );
 
-const UpcomingBookingCard: React.FC<{ booking: Booking; tourist: User | undefined }> = ({ booking, tourist }) => {
+const BookingRow: React.FC<{ booking: Booking; tourist: User | undefined }> = ({ booking, tourist }) => {
     if (!tourist) return null;
 
     return (
-        <div className="bg-light dark:bg-dark p-4 rounded-lg flex items-center gap-4 border-l-4 border-primary">
+        <div className="bg-light dark:bg-dark p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center gap-4 border-l-4 border-primary transition-colors hover:bg-light-dark dark:hover:bg-dark-light">
             <img src={tourist.avatarUrl} alt={tourist.name} className="w-12 h-12 rounded-full object-cover" />
             <div className="flex-grow">
                 <p className="font-bold">{tourist.name}</p>
@@ -35,17 +40,31 @@ const UpcomingBookingCard: React.FC<{ booking: Booking; tourist: User | undefine
                     {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
                 </p>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
                 <p className="font-semibold text-lg">₹{booking.totalPrice.toLocaleString('en-IN')}</p>
                 <p className="text-xs text-gray-500">{booking.guests} {booking.guests > 1 ? 'guests' : 'guest'}</p>
             </div>
-            <Button variant="outline" className="py-2 px-3 text-sm">View</Button>
+            <Button variant="outline" className="py-2 px-3 text-sm self-start sm:self-center">View Details</Button>
         </div>
     );
 };
 
+const RecommendationCard: React.FC<{ item: Vendor | Stay }> = ({ item }) => (
+    <div className="flex items-center gap-4 bg-light dark:bg-dark p-3 rounded-lg">
+        <img src={item.avatarUrl} alt={item.name} className="w-12 h-12 rounded-md object-cover" />
+        <div className="flex-grow">
+            <p className="font-semibold">{item.name}</p>
+            <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                <StarRating rating={item.rating} />
+                <span className="ml-2">({item.reviewCount})</span>
+            </div>
+        </div>
+    </div>
+);
 
-const GuideDashboardPage: React.FC<GuideDashboardPageProps> = ({ guideUser, guides, bookings, allUsers }) => {
+
+const GuideDashboardPage: React.FC<GuideDashboardPageProps> = ({ guideUser, guides, bookings, allUsers, vendors, stays }) => {
+    const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
     const guideProfile = useMemo(() => guides.find(g => g.id === guideUser.id), [guides, guideUser.id]);
     
     const upcomingBookings = useMemo(() => 
@@ -54,63 +73,107 @@ const GuideDashboardPage: React.FC<GuideDashboardPageProps> = ({ guideUser, guid
         [bookings, guideUser.id]
     );
 
-    const totalEarnings = useMemo(() => 
-        bookings
-            .filter(b => b.guideId === guideUser.id && b.status === BookingStatus.Completed)
-            .reduce((sum, b) => sum + b.totalPrice, 0),
+     const pastBookings = useMemo(() => 
+        bookings.filter(b => b.guideId === guideUser.id && b.status === BookingStatus.Completed)
+        .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()),
         [bookings, guideUser.id]
     );
 
-    // FIX: All hooks must be called before any conditional returns.
-    // The check for guideProfile is moved after all useMemo hooks.
+    const totalEarnings = useMemo(() => 
+        pastBookings.reduce((sum, b) => sum + b.totalPrice, 0),
+        [pastBookings]
+    );
+    
+    const localVendors = useMemo(() => 
+        vendors.filter(v => v.location === guideProfile?.location && v.verificationStatus === 'verified'),
+        [vendors, guideProfile]
+    );
+
+    const localStays = useMemo(() =>
+        stays.filter(s => s.location === guideProfile?.location && s.verificationStatus === 'verified'),
+        [stays, guideProfile]
+    );
+
     if (!guideProfile) {
         return <div className="text-center py-10">Error: Guide profile not found.</div>;
     }
 
+    const TabButton: React.FC<{tab: 'upcoming' | 'past'; children: React.ReactNode}> = ({tab, children}) => (
+        <button 
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 font-semibold rounded-md transition-colors text-sm ${activeTab === tab ? 'bg-primary text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark'}`}
+        >
+            {children}
+        </button>
+      );
+
     return (
         <div className="max-w-6xl mx-auto animate-fade-in space-y-8">
             <div>
-                <h1 className="text-4xl font-extrabold text-dark dark:text-light">Welcome back, {guideUser.name.split(' ')[0]}!</h1>
+                <h1 className="text-4xl font-extrabold font-heading text-dark dark:text-light">Welcome back, {guideUser.name.split(' ')[0]}!</h1>
                 <p className="text-lg text-gray-500 dark:text-gray-400">Here's what's happening with your guide business today.</p>
             </div>
             
-            {/* Main Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column - Main Info */}
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Earnings Section */}
-                    <section>
-                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <StatCard title="Total Earnings" value={`₹${(totalEarnings / 1000).toFixed(1)}k`} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
-                            <StatCard title="Upcoming Bookings" value={upcomingBookings.length.toString()} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
-                            <StatCard title="Overall Rating" value={guideProfile.rating.toString()} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>} />
+                    <section className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
+                        <h2 className="text-2xl font-bold font-heading mb-1">Earnings Overview</h2>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Your earnings for the last 6 months.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="md:col-span-1 bg-light dark:bg-dark p-4 rounded-lg flex flex-col justify-center">
+                                <p className="text-sm text-gray-500">Total Earnings (Past Bookings)</p>
+                                <p className="text-4xl font-extrabold text-primary">₹{totalEarnings.toLocaleString('en-IN')}</p>
+                            </div>
+                            <div className="md:col-span-2">
+                                <EarningsChart />
+                            </div>
                         </div>
                     </section>
 
-                    {/* Upcoming Bookings Section */}
                     <section className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
-                        <h2 className="text-2xl font-bold mb-4">Upcoming Schedule</h2>
-                        {upcomingBookings.length > 0 ? (
-                            <div className="space-y-4">
-                                {upcomingBookings.map(booking => (
-                                    <UpcomingBookingCard 
-                                        key={booking.id} 
-                                        booking={booking} 
-                                        tourist={allUsers.find(u => u.id === booking.userId)} 
-                                    />
-                                ))}
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-bold font-heading">My Bookings</h2>
+                            <div className="flex items-center gap-2 p-1 bg-light dark:bg-dark rounded-lg">
+                                <TabButton tab="upcoming">Upcoming ({upcomingBookings.length})</TabButton>
+                                <TabButton tab="past">Past ({pastBookings.length})</TabButton>
                             </div>
-                        ) : (
-                            <p className="text-center text-gray-500 py-8">You have no upcoming bookings.</p>
-                        )}
+                        </div>
+                        
+                        <div className="space-y-4">
+                            {activeTab === 'upcoming' && (
+                                upcomingBookings.length > 0 ? (
+                                    upcomingBookings.map(booking => (
+                                        <BookingRow 
+                                            key={booking.id} 
+                                            booking={booking} 
+                                            tourist={allUsers.find(u => u.id === booking.userId)} 
+                                        />
+                                    ))
+                                ) : (
+                                    <p className="text-center text-gray-500 dark:text-gray-400 py-8">You have no upcoming bookings.</p>
+                                )
+                            )}
+                             {activeTab === 'past' && (
+                                pastBookings.length > 0 ? (
+                                    pastBookings.map(booking => (
+                                        <BookingRow 
+                                            key={booking.id} 
+                                            booking={booking} 
+                                            tourist={allUsers.find(u => u.id === booking.userId)} 
+                                        />
+                                    ))
+                                ) : (
+                                    <p className="text-center text-gray-500 dark:text-gray-400 py-8">No completed bookings yet.</p>
+                                )
+                            )}
+                        </div>
                     </section>
                 </div>
 
-                {/* Right Column - Profile */}
                 <aside className="lg:col-span-1 space-y-8">
                     <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg text-center">
                         <img src={guideProfile.avatarUrl} alt={guideProfile.name} className="w-32 h-32 rounded-full mx-auto border-4 border-primary object-cover" />
-                        <h2 className="text-2xl font-bold mt-4">{guideProfile.name}</h2>
+                        <h2 className="text-2xl font-bold font-heading mt-4">{guideProfile.name}</h2>
                         <p className="text-gray-500 dark:text-gray-400">{guideProfile.location}</p>
                         {guideProfile.verificationStatus === 'verified' ? (
                             <Badge color="green">Verified</Badge>
@@ -124,6 +187,24 @@ const GuideDashboardPage: React.FC<GuideDashboardPageProps> = ({ guideUser, guid
                             <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">({guideProfile.reviewCount} reviews)</span>
                         </div>
                         <Button variant="outline" className="w-full mt-6">Edit My Profile</Button>
+                    </div>
+                    <AvailabilityCalendar />
+                     <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
+                        <h3 className="text-xl font-bold font-heading mb-4">Local Recommendations</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="font-semibold text-primary mb-2 font-heading">Top Eateries</h4>
+                                <div className="space-y-2">
+                                    {localVendors.length > 0 ? localVendors.slice(0,2).map(v => <RecommendationCard key={v.id} item={v}/>) : <p className="text-xs text-gray-500">No verified vendors in your area yet.</p>}
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="font-semibold text-primary mb-2 font-heading">Recommended Stays</h4>
+                                <div className="space-y-2">
+                                     {localStays.length > 0 ? localStays.slice(0,2).map(s => <RecommendationCard key={s.id} item={s}/>) : <p className="text-xs text-gray-500">No verified stays in your area yet.</p>}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </aside>
             </div>

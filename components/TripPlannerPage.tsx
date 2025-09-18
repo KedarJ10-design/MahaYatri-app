@@ -38,7 +38,7 @@ const TripPlannerPage: React.FC<TripPlannerPageProps> = ({ user, onEstimateCost 
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
       <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg mb-8">
-        <h1 className="text-4xl font-extrabold text-center text-dark dark:text-light mb-2">AI Trip Planner</h1>
+        <h1 className="text-4xl font-extrabold font-heading text-center text-dark dark:text-light mb-2">AI Trip Planner</h1>
         <p className="text-center text-gray-600 dark:text-gray-400 mb-6">Let's craft your perfect Maharashtra adventure!</p>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
           <Input 
@@ -76,7 +76,7 @@ const TripPlannerPage: React.FC<TripPlannerPageProps> = ({ user, onEstimateCost 
 
       {error && (
         <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg dark:bg-red-900 dark:text-red-200" role="alert">
-          <p className="font-bold">Oops! Something went wrong.</p>
+          <p className="font-bold font-heading">Oops! Something went wrong.</p>
           <p>{error}</p>
         </div>
       )}
@@ -85,7 +85,7 @@ const TripPlannerPage: React.FC<TripPlannerPageProps> = ({ user, onEstimateCost 
         <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg animate-slide-up">
           <div className="flex justify-between items-start mb-4">
             <div>
-              <h2 className="text-3xl font-bold text-primary">{`Your ${itinerary.duration}-Day Trip to ${itinerary.destination}`}</h2>
+              <h2 className="text-3xl font-bold font-heading text-primary">{`Your ${itinerary.duration}-Day Trip to ${itinerary.destination}`}</h2>
             </div>
             <div className="flex items-center gap-2">
               {!user.isPro && <Badge color="yellow">PRO</Badge>}
@@ -98,7 +98,7 @@ const TripPlannerPage: React.FC<TripPlannerPageProps> = ({ user, onEstimateCost 
           <div className="space-y-6">
             {itinerary.itinerary.map((dayPlan) => (
               <div key={dayPlan.day} className="border-l-4 border-accent pl-6 py-4 bg-light dark:bg-dark rounded-r-lg">
-                <h3 className="text-2xl font-semibold text-dark dark:text-light">{`Day ${dayPlan.day}: ${dayPlan.title}`}</h3>
+                <h3 className="text-2xl font-semibold font-heading text-dark dark:text-light">{`Day ${dayPlan.day}: ${dayPlan.title}`}</h3>
                 <ul className="mt-2 list-disc list-inside text-gray-700 dark:text-gray-300 space-y-1">
                   {dayPlan.activities.map((activity, index) => (
                     <li key={index}>{activity}</li>

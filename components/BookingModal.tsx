@@ -61,7 +61,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ guide, onClose, onBook }) =
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"
+      className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -72,7 +72,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ guide, onClose, onBook }) =
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-            <h2 id="booking-title" className="text-2xl font-bold text-dark dark:text-light">Book trip with {guide.name}</h2>
+            <h2 id="booking-title" className="text-2xl font-bold font-heading text-dark dark:text-light">Book trip with {guide.name}</h2>
             <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-lighter" aria-label="Close modal">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
@@ -106,7 +106,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ guide, onClose, onBook }) =
         {step === 2 && (
             <div>
                 <div className="p-8 space-y-4">
-                    <h3 className="text-xl font-semibold">Booking Summary</h3>
+                    <h3 className="text-xl font-semibold font-heading">Booking Summary</h3>
                     <div className="bg-light dark:bg-dark p-4 rounded-lg space-y-2">
                         <p><strong>Guide:</strong> {guide.name}</p>
                         <p><strong>Location:</strong> {guide.location}</p>

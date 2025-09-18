@@ -1,34 +1,44 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, Auth } from "firebase/auth";
+// Use the v8 compatibility layer (compat), which provides the v8 namespaced API.
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
 
 // Your web app's Firebase configuration
-// These values are loaded from environment variables in the execution environment.
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID
+// This configuration is now exported to be used in other parts of the app, like the error display.
+export const firebaseConfig = {
+  apiKey: "AIzaSyCdPlC6-0xeYvinxK9jNPOsWzKaB5G_keQ",
+  authDomain: "mahayatri---app.firebaseapp.com",
+  projectId: "mahayatri---app",
+  storageBucket: "mahayatri---app.firebasestorage.app",
+  messagingSenderId: "180900962167",
+  appId: "1:180900962167:web:e9a41c98a76825b471cb72"
 };
 
-let authInstance: Auth | null = null;
-
-// Only initialize Firebase if the API key is provided and valid.
-if (firebaseConfig.apiKey) {
+// Initialize Firebase only once
+if (!firebase.apps.length) {
   try {
-    const app = initializeApp(firebaseConfig);
-    authInstance = getAuth(app);
-  } catch(e: any) {
-    console.error("Firebase initialization failed:", e.message);
-    // This will catch auth/invalid-api-key if other keys are present but the main key is bad.
+    firebase.initializeApp(firebaseConfig);
+  } catch (error) {
+    console.error("Firebase initialization error:", error);
+    // This critical error prevents the app from running.
+    // Display a user-friendly message on the page itself if initialization fails.
+    const root = document.getElementById('root');
+    if (root) {
+        root.innerHTML = `
+          <div style="padding: 2rem; text-align: center; font-family: sans-serif; background-color: #fff1f2; color: #b91c1c; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <h1 style="font-size: 1.5rem; font-weight: bold;">Firebase Configuration Error</h1>
+            <p style="margin-top: 0.5rem;">The application could not start. Please ensure you have a valid Firebase configuration in <strong>services/firebase.ts</strong>.</p>
+          </div>
+        `;
+    }
+    throw new Error("Firebase configuration is missing or invalid. Please update services/firebase.ts.");
   }
-} else {
-  console.log("Firebase configuration not found. MahaYatri will run in Demo Mode.");
 }
 
-
-// Initialize Firebase Authentication and get a reference to the service
-export const auth = authInstance;
-export const googleProvider = new GoogleAuthProvider();
+// Get references to the services
+export const auth = firebase.auth();
+export const db = firebase.firestore();
+export const googleProvider = new firebase.auth.GoogleAuthProvider();
+export const browserLocalPersistence = firebase.auth.Auth.Persistence.LOCAL;
+export const browserSessionPersistence = firebase.auth.Auth.Persistence.SESSION;
+export type FirebaseUser = firebase.User;

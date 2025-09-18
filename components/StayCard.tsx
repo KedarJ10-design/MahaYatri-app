@@ -1,20 +1,20 @@
 import React from 'react';
-import { Guide } from '../types';
+import { Stay } from '../types';
 import StarRating from './StarRating';
 import Badge from './Badge';
 import Button from './common/Button';
 
-interface GuideCardProps {
-  guide: Guide;
+interface StayCardProps {
+  stay: Stay;
   onViewDetails: () => void;
 }
 
-const GuideCard: React.FC<GuideCardProps> = ({ guide, onViewDetails }) => {
+const StayCard: React.FC<StayCardProps> = ({ stay, onViewDetails }) => {
   return (
     <div className="bg-white dark:bg-dark-light rounded-xl shadow-lg overflow-hidden flex flex-col transform hover:-translate-y-2 transition-transform duration-300">
       <div className="relative">
-        <img className="w-full h-56 object-cover" src={guide.avatarUrl} alt={guide.name} />
-        {guide.verificationStatus === 'verified' && (
+        <img className="w-full h-56 object-cover" src={stay.avatarUrl} alt={stay.name} />
+        {stay.verificationStatus === 'verified' && (
           <div className="absolute top-2 right-2">
             <Badge color="green">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
@@ -26,20 +26,26 @@ const GuideCard: React.FC<GuideCardProps> = ({ guide, onViewDetails }) => {
         )}
       </div>
       <div className="p-6 flex flex-col flex-grow">
-        <h3 className="text-xl font-bold font-heading text-dark dark:text-light">{guide.name}</h3>
-        <p className="text-gray-600 dark:text-gray-400 mb-2">{guide.location}</p>
-        <div className="flex items-center mb-4">
-          <StarRating rating={guide.rating} />
-          <span className="text-gray-500 dark:text-gray-400 ml-2">({guide.reviewCount} reviews)</span>
+        <div>
+            <Badge color='blue'>{stay.type}</Badge>
+            <h3 className="text-xl font-bold text-dark dark:text-light mt-2">{stay.name}</h3>
         </div>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {guide.specialties.slice(0, 3).map(specialty => (
-            <Badge key={specialty}>{specialty}</Badge>
-          ))}
+        <p className="text-gray-600 dark:text-gray-400 mb-2">{stay.location}</p>
+        <div className="flex items-center mb-4">
+          <StarRating rating={stay.rating} />
+          <span className="text-gray-500 dark:text-gray-400 ml-2">({stay.reviewCount} reviews)</span>
+        </div>
+        <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-wrap gap-1">
+                {stay.amenities.slice(0, 3).map(a => (
+                    <span key={a} className="text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-dark px-2 py-1 rounded">{a}</span>
+                ))}
+            </div>
+            <p className="font-bold text-lg text-primary">₹{stay.pricePerNight}<span className="text-sm font-normal text-gray-500 dark:text-gray-400">/night</span></p>
         </div>
         <div className="mt-auto">
             <Button onClick={onViewDetails} className="w-full" variant="outline">
-                View Profile
+                View Details
             </Button>
         </div>
       </div>
@@ -47,4 +53,4 @@ const GuideCard: React.FC<GuideCardProps> = ({ guide, onViewDetails }) => {
   );
 };
 
-export default GuideCard;
+export default StayCard;

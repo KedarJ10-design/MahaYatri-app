@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Chat } from '@google/ai-sdk/ai';
+import { Chat } from '@google/genai';
 import { ai } from '../services/geminiService';
 import { ChatMessage, User } from '../types';
 import { useAuth } from '../contexts/AuthContext';

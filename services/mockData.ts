@@ -1,10 +1,10 @@
-import { User, Guide, Booking, BookingStatus, Conversation, DirectMessage, Review } from '../types';
+import { User, Guide, Booking, BookingStatus, Conversation, DirectMessage, Review, Vendor, Stay } from '../types';
 
 export const mockTouristUser: User = {
   id: 'user-1',
   name: 'Priya Sharma',
   email: 'priya.sharma@example.com',
-  avatarUrl: 'https://picsum.photos/seed/priya/200/200',
+  avatarUrl: 'https://picsum.photos/seed/tourist-woman/200/200',
   preferences: ['Historical Sites', 'Local Cuisine', 'Nature Walks'],
   emergencyContact: {
     name: 'Anil Sharma',
@@ -14,50 +14,49 @@ export const mockTouristUser: User = {
   points: 3940,
   unlockedGuideIds: ['guide-2'],
   role: 'user',
+  redeemedRewardIds: ['reward-3'],
+  status: 'active',
+  hasPendingApplication: false,
 };
 
 export const mockGuideUser: User = {
     id: 'guide-1', // Corresponds to Rohan Patil
     name: 'Rohan Patil',
     email: 'rohan.patil@example.com', // Using a real-world-like email for lookup
-    avatarUrl: 'https://picsum.photos/seed/rohan/200/200',
+    avatarUrl: 'https://picsum.photos/seed/guide-man-mumbai/200/200',
     preferences: [],
     emergencyContact: { name: 'Support', phone: '123-456-7890' },
     isPro: true,
     points: 0,
     unlockedGuideIds: [],
     role: 'guide',
+    redeemedRewardIds: [],
+    status: 'active',
+    hasPendingApplication: false,
 };
 
 export const mockAdminUser: User = {
   id: 'admin-1',
   name: 'Admin User',
   email: 'admin@example.com', // Using a real-world-like email for lookup
-  avatarUrl: 'https://picsum.photos/seed/admin/200/200',
+  avatarUrl: 'https://picsum.photos/seed/admin-user/200/200',
   preferences: [],
   emergencyContact: { name: 'Support', phone: '123-456-7890' },
   isPro: true,
   points: 0,
   unlockedGuideIds: [],
   role: 'admin',
+  redeemedRewardIds: [],
+  status: 'active',
+  hasPendingApplication: false,
 };
-
-// Array of all user profiles for easy lookup after authentication
-export const mockUserProfiles: User[] = [mockTouristUser, mockGuideUser, mockAdminUser];
-
-// Function to find a user profile by email (simulating a DB lookup)
-export const getUserProfileByEmail = (email: string): User | undefined => {
-    // In a real app, you might need to normalize emails (e.g., toLowerCase)
-    return mockUserProfiles.find(user => user.email.toLowerCase() === email.toLowerCase());
-};
-
 
 export const mockGuides: Guide[] = [
   {
     id: 'guide-1',
     name: 'Rohan Patil',
     location: 'Mumbai',
-    avatarUrl: 'https://picsum.photos/seed/rohan/300/300',
+    avatarUrl: 'https://picsum.photos/seed/mumbai-guide/300/300',
     rating: 4.9,
     reviewCount: 124,
     languages: ['English', 'Hindi', 'Marathi'],
@@ -65,7 +64,7 @@ export const mockGuides: Guide[] = [
     bio: 'Born and raised in Mumbai, I know every nook and cranny of this vibrant city. Let me show you the real Mumbai, from hidden food gems to the glamour of Bollywood.',
     pricePerDay: 4500,
     verificationStatus: 'verified',
-    gallery: ['https://picsum.photos/seed/mumbai1/600/400', 'https://picsum.photos/seed/mumbai2/600/400', 'https://picsum.photos/seed/mumbai3/600/400'],
+    gallery: ['https://picsum.photos/seed/gateway-of-india/600/400', 'https://picsum.photos/seed/mumbai-dabbawala/600/400', 'https://picsum.photos/seed/mumbai-local-train/600/400'],
     contactInfo: {
       phone: '+91 98200 98200',
       email: 'rohan.patil@guides.mahayatri.com'
@@ -76,7 +75,7 @@ export const mockGuides: Guide[] = [
     id: 'guide-2',
     name: 'Aisha Khan',
     location: 'Pune',
-    avatarUrl: 'https://picsum.photos/seed/aisha/300/300',
+    avatarUrl: 'https://picsum.photos/seed/pune-guide/300/300',
     rating: 4.8,
     reviewCount: 98,
     languages: ['English', 'Hindi'],
@@ -84,7 +83,7 @@ export const mockGuides: Guide[] = [
     bio: 'An avid trekker and history enthusiast, I specialize in tours around Pune, exploring the majestic forts of the Sahyadri mountains and the rich Maratha history.',
     pricePerDay: 4000,
     verificationStatus: 'verified',
-    gallery: ['https://picsum.photos/seed/pune1/600/400', 'https://picsum.photos/seed/pune2/600/400', 'https://picsum.photos/seed/pune3/600/400'],
+    gallery: ['https://picsum.photos/seed/pune-fortress/600/400', 'https://picsum.photos/seed/sahyadri-trek/600/400', 'https://picsum.photos/seed/pune-old-city/600/400'],
      contactInfo: {
       phone: '+91 98900 98900',
       email: 'aisha.khan@guides.mahayatri.com'
@@ -95,7 +94,7 @@ export const mockGuides: Guide[] = [
     id: 'guide-3',
     name: 'Vikram Singh',
     location: 'Aurangabad',
-    avatarUrl: 'https://picsum.photos/seed/vikram/300/300',
+    avatarUrl: 'https://picsum.photos/seed/aurangabad-guide/300/300',
     rating: 4.9,
     reviewCount: 150,
     languages: ['English', 'Hindi', 'Marathi'],
@@ -103,7 +102,7 @@ export const mockGuides: Guide[] = [
     bio: 'Explore the timeless wonders of Ajanta and Ellora with a certified archaeologist. I provide in-depth tours that bring ancient history to life.',
     pricePerDay: 5500,
     verificationStatus: 'verified',
-    gallery: ['https://picsum.photos/seed/caves1/600/400', 'https://picsum.photos/seed/caves2/600/400', 'https://picsum.photos/seed/caves3/600/400'],
+    gallery: ['https://picsum.photos/seed/ajanta-caves/600/400', 'https://picsum.photos/seed/ellora-caves/600/400', 'https://picsum.photos/seed/bibi-qa-maqbara/600/400'],
      contactInfo: {
       phone: '+91 99220 99220',
       email: 'vikram.singh@guides.mahayatri.com'
@@ -114,7 +113,7 @@ export const mockGuides: Guide[] = [
     id: 'guide-4',
     name: 'Sunita Gawde',
     location: 'Nashik',
-    avatarUrl: 'https://picsum.photos/seed/sunita/300/300',
+    avatarUrl: 'https://picsum.photos/seed/nashik-guide/300/300',
     rating: 4.7,
     reviewCount: 75,
     languages: ['English', 'Marathi'],
@@ -122,7 +121,7 @@ export const mockGuides: Guide[] = [
     bio: 'Discover Nashik, the wine capital of India! I offer exclusive tours of the best vineyards, combined with visits to sacred temples and delicious local food experiences. I have submitted all my documents for verification.',
     pricePerDay: 3800,
     verificationStatus: 'pending',
-    gallery: ['https://picsum.photos/seed/nashik1/600/400', 'https://picsum.photos/seed/nashik2/600/400', 'https://picsum.photos/seed/nashik3/600/400'],
+    gallery: ['https://picsum.photos/seed/nashik-vineyard/600/400', 'https://picsum.photos/seed/trimbakeshwar-temple/600/400', 'https://picsum.photos/seed/sula-vineyards/600/400'],
      contactInfo: {
       phone: '+91 98600 98600',
       email: 'sunita.gawde@guides.mahayatri.com'
@@ -130,6 +129,117 @@ export const mockGuides: Guide[] = [
     contactUnlockPrice: 150,
   },
 ];
+
+export const mockVendors: Vendor[] = [
+    {
+        id: 'vendor-1',
+        name: 'Bademiya',
+        location: 'Mumbai',
+        type: 'Street Food',
+        cuisine: ['Mughlai', 'Kebab'],
+        rating: 4.5,
+        reviewCount: 2500,
+        priceRange: '$$',
+        avatarUrl: 'https://picsum.photos/seed/mumbai-kebab/300/300',
+        gallery: ['https://picsum.photos/seed/kebab-stall/600/400', 'https://picsum.photos/seed/mughlai-food/600/400'],
+        verificationStatus: 'verified',
+    },
+    {
+        id: 'vendor-2',
+        name: 'Vaishali',
+        location: 'Pune',
+        type: 'Restaurant',
+        cuisine: ['South Indian', 'Maharashtrian'],
+        rating: 4.8,
+        reviewCount: 3200,
+        priceRange: '$$',
+        avatarUrl: 'https://picsum.photos/seed/pune-restaurant/300/300',
+        gallery: ['https://picsum.photos/seed/pune-dosa/600/400', 'https://picsum.photos/seed/pune-thali/600/400'],
+        verificationStatus: 'verified',
+    },
+    {
+        id: 'vendor-3',
+        name: 'German Bakery',
+        location: 'Pune',
+        type: 'Cafe',
+        cuisine: ['Cafe', 'Desserts', 'Continental'],
+        rating: 4.6,
+        reviewCount: 1800,
+        priceRange: '$$$',
+        avatarUrl: 'https://picsum.photos/seed/pune-cafe/300/300',
+        gallery: ['https://picsum.photos/seed/pune-pastry/600/400', 'https://picsum.photos/seed/coffee-shop/600/400'],
+        verificationStatus: 'verified',
+    },
+    {
+        id: 'vendor-4',
+        name: 'New Famous Pav Bhaji',
+        location: 'Nashik',
+        type: 'Street Food',
+        cuisine: ['Street Food'],
+        rating: 4.9,
+        reviewCount: 950,
+        priceRange: '$',
+        avatarUrl: 'https://picsum.photos/seed/nashik-pavbhaji/300/300',
+        gallery: ['https://picsum.photos/seed/pav-bhaji/600/400', 'https://picsum.photos/seed/street-food-vendor/600/400'],
+        verificationStatus: 'pending',
+    }
+];
+
+export const mockStays: Stay[] = [
+    {
+        id: 'stay-1',
+        name: 'The Taj Mahal Palace',
+        location: 'Mumbai',
+        type: 'Hotel',
+        rating: 5.0,
+        reviewCount: 5000,
+        pricePerNight: 25000,
+        amenities: ['Pool', 'Spa', 'Sea View', 'Fine Dining'],
+        avatarUrl: 'https://picsum.photos/seed/mumbai-taj-hotel/300/300',
+        gallery: ['https://picsum.photos/seed/taj-hotel-exterior/600/400', 'https://picsum.photos/seed/taj-hotel-room/600/400'],
+        verificationStatus: 'verified',
+    },
+    {
+        id: 'stay-2',
+        name: 'Verandah by the Valley',
+        location: 'Pune',
+        type: 'Homestay',
+        rating: 4.9,
+        reviewCount: 250,
+        pricePerNight: 8000,
+        amenities: ['Garden', 'Home-cooked Meals', 'Wi-Fi'],
+        avatarUrl: 'https://picsum.photos/seed/pune-homestay/300/300',
+        gallery: ['https://picsum.photos/seed/homestay-garden/600/400', 'https://picsum.photos/seed/homestay-room/600/400'],
+        verificationStatus: 'verified',
+    },
+    {
+        id: 'stay-3',
+        name: 'Beyond by Sula',
+        location: 'Nashik',
+        type: 'Resort',
+        rating: 4.8,
+        reviewCount: 900,
+        pricePerNight: 12000,
+        amenities: ['Vineyard View', 'Pool', 'Wine Tasting'],
+        avatarUrl: 'https://picsum.photos/seed/nashik-resort/300/300',
+        gallery: ['https://picsum.photos/seed/vineyard-resort/600/400', 'https://picsum.photos/seed/resort-pool/600/400'],
+        verificationStatus: 'verified',
+    },
+    {
+        id: 'stay-4',
+        name: 'Jagtap\'s Farm Stay',
+        location: 'Aurangabad',
+        type: 'Homestay',
+        rating: 4.7,
+        reviewCount: 150,
+        pricePerNight: 4500,
+        amenities: ['Organic Farm', 'Rustic Charm', 'Quiet'],
+        avatarUrl: 'https://picsum.photos/seed/aurangabad-farmstay/300/300',
+        gallery: ['https://picsum.photos/seed/farm-stay-exterior/600/400', 'https://picsum.photos/seed/farm-stay-room/600/400'],
+        verificationStatus: 'pending',
+    },
+];
+
 
 export const mockBookings: Booking[] = [
     {
@@ -177,7 +287,19 @@ export const mockBookings: Booking[] = [
         totalPrice: 40500,
         status: BookingStatus.Upcoming,
         pointsEarned: 4050,
-    }
+    },
+    {
+        id: 'booking-5',
+        userId: 'user-3',
+        guideId: 'guide-1',
+        startDate: '2024-06-10',
+        endDate: '2024-06-11',
+        guests: 2,
+        totalPrice: 18000,
+        status: BookingStatus.Completed,
+        pointsEarned: 1800,
+        hasBeenReviewed: false,
+    },
 ];
 
 export const mockConversations: Conversation[] = [
@@ -234,8 +356,10 @@ export const mockReviews: Review[] = [
     },
 ];
 
-// We need some more users for the reviews to make sense
+// We need some more users for the reviews and admin panel to make sense
 export const otherUsers: User[] = [
-    {...mockTouristUser, id: 'user-2', name: 'Rahul Verma', avatarUrl: 'https://picsum.photos/seed/rahul/200/200', role: 'user'},
-    {...mockTouristUser, id: 'user-3', name: 'Sneha Reddy', avatarUrl: 'https://picsum.photos/seed/sneha/200/200', role: 'user'}
+    {...mockTouristUser, id: 'user-2', name: 'Rahul Verma', avatarUrl: 'https://picsum.photos/seed/tourist-man-1/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false },
+    {...mockTouristUser, id: 'user-3', name: 'Sneha Reddy', avatarUrl: 'https://picsum.photos/seed/tourist-woman-2/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false },
+    {...mockTouristUser, id: 'user-4', name: 'Arjun Mehta', avatarUrl: 'https://picsum.photos/seed/tourist-man-2/200/200', role: 'user', status: 'suspended', redeemedRewardIds: [], hasPendingApplication: false },
+    {...mockTouristUser, id: 'user-5', name: 'Divya Rao', avatarUrl: 'https://picsum.photos/seed/tourist-woman-3/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false }
 ];

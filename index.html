@@ -27,10 +27,13 @@
             },
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
+              heading: ['Poppins', 'sans-serif'],
             },
             animation: {
               'fade-in': 'fadeIn 0.5s ease-in-out',
+              'fade-in-slow': 'fadeIn 0.7s ease-in-out',
               'slide-up': 'slideUp 0.5s ease-in-out',
+              'pulse-subtle': 'pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             },
             keyframes: {
               fadeIn: {
@@ -40,6 +43,10 @@
               slideUp: {
                 '0%': { transform: 'translateY(20px)', opacity: 0 },
                 '100%': { transform: 'translateY(0)', opacity: 1 },
+              },
+              pulseSubtle: {
+                '0%, 100%': { opacity: 1 },
+                '50%': { opacity: .6 },
               }
             }
           }
@@ -48,7 +55,7 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script type="importmap">
 {

@@ -13,7 +13,7 @@ interface PlaceDetailsModalProps {
 
 const DetailSection: React.FC<{title: string; icon: React.ReactNode, children: React.ReactNode}> = ({ title, icon, children }) => (
     <div>
-        <h4 className="flex items-center text-lg font-semibold text-dark dark:text-light mb-2">
+        <h4 className="flex items-center text-lg font-semibold font-heading text-dark dark:text-light mb-2">
             {icon}
             <span className="ml-2">{title}</span>
         </h4>
@@ -66,7 +66,7 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, onClose, o
       if (error) {
           return (
              <div className="bg-red-100 text-red-700 p-4 rounded-lg dark:bg-red-900 dark:text-red-200" role="alert">
-                <p className="font-bold">Error loading details:</p>
+                <p className="font-bold font-heading">Error loading details:</p>
                 <p>{error}</p>
             </div>
           )
@@ -97,7 +97,7 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, onClose, o
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"
+      className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -109,7 +109,7 @@ const PlaceDetailsModal: React.FC<PlaceDetailsModalProps> = ({ place, onClose, o
       >
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start">
             <div>
-                <h2 id="place-details-title" className="text-2xl font-bold text-dark dark:text-light">{place.name}</h2>
+                <h2 id="place-details-title" className="text-2xl font-bold font-heading text-dark dark:text-light">{place.name}</h2>
                 <p className="text-gray-500 dark:text-gray-400">{place.destination}</p>
             </div>
             <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-lighter" aria-label="Close modal">

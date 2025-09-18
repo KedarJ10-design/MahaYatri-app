@@ -56,7 +56,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ booking, guides, onClose, onS
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"
+      className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -67,7 +67,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ booking, guides, onClose, onS
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 text-center">
-          <h2 id="review-title" className="text-2xl font-bold text-dark dark:text-light">Rate your trip with {guide.name}</h2>
+          <h2 id="review-title" className="text-2xl font-bold font-heading text-dark dark:text-light">Rate your trip with {guide.name}</h2>
           <p className="text-gray-500 dark:text-gray-400">Your feedback helps other travelers.</p>
         </div>
         

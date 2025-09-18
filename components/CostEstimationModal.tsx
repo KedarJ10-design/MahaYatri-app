@@ -49,7 +49,7 @@ const CostEstimationModal: React.FC<CostEstimationModalProps> = ({ itinerary, on
     if (error) {
       return (
         <div className="bg-red-100 text-red-700 p-4 rounded-lg dark:bg-red-900 dark:text-red-200" role="alert">
-          <p className="font-bold">Error loading estimate:</p>
+          <p className="font-bold font-heading">Error loading estimate:</p>
           <p>{error}</p>
         </div>
       );
@@ -61,14 +61,14 @@ const CostEstimationModal: React.FC<CostEstimationModalProps> = ({ itinerary, on
           {Object.entries(estimate).map(([category, details]) => (
             <div key={category} className="p-4 bg-light dark:bg-dark rounded-lg">
               <div className="flex justify-between items-center">
-                <h4 className="text-lg font-semibold capitalize">{category.replace(/([A-Z])/g, ' $1')}</h4>
+                <h4 className="text-lg font-semibold font-heading capitalize">{category.replace(/([A-Z])/g, ' $1')}</h4>
                 <p className="font-bold text-lg text-primary">₹{details.amount.toLocaleString('en-IN')}</p>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{details.description}</p>
             </div>
           ))}
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4 flex justify-between items-center">
-              <h3 className="text-xl font-bold">Grand Total</h3>
+              <h3 className="text-xl font-bold font-heading">Grand Total</h3>
               <p className="text-2xl font-extrabold text-primary">₹{totalCost.toLocaleString('en-IN')}</p>
           </div>
           <p className="text-xs text-gray-400 text-center pt-2">*This is an AI-generated estimate for a solo traveler and may vary based on your travel style and preferences.</p>
@@ -80,7 +80,7 @@ const CostEstimationModal: React.FC<CostEstimationModalProps> = ({ itinerary, on
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 animate-fade-in"
+      className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -92,7 +92,7 @@ const CostEstimationModal: React.FC<CostEstimationModalProps> = ({ itinerary, on
       >
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <div>
-            <h2 id="cost-title" className="text-2xl font-bold text-dark dark:text-light">Trip Cost Estimate</h2>
+            <h2 id="cost-title" className="text-2xl font-bold font-heading text-dark dark:text-light">Trip Cost Estimate</h2>
             <p className="text-gray-500 dark:text-gray-400">{itinerary.destination} - {itinerary.duration} Days</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-lighter" aria-label="Close modal">

@@ -30,33 +30,51 @@ const PlaceSuggestionCard: React.FC<{ place: PlaceSuggestion; onView: () => void
                 </svg>
               </button>
             </div>
-            <h3 className="text-xl font-bold text-dark dark:text-light">{place.name}</h3>
+            <h3 className="text-xl font-bold font-heading text-dark dark:text-light">{place.name}</h3>
             <p className="text-gray-600 dark:text-gray-400 flex-grow">{place.description}</p>
             <Button onClick={onView} variant="outline" className="w-full mt-2 py-2">View Details</Button>
         </div>
     );
 }
 
+const topDestinations = [
+  { name: 'Mumbai', imageSeed: 'mumbai-city' },
+  { name: 'Pune', imageSeed: 'pune-fort' },
+  { name: 'Aurangabad', imageSeed: 'aurangabad-caves' },
+  { name: 'Nashik', imageSeed: 'nashik-vineyard' },
+  { name: 'Mahabaleshwar', imageSeed: 'mahabaleshwar-hills' },
+  { name: 'Lonavala', imageSeed: 'lonavala-valley' },
+];
+
 const ExplorePage: React.FC<ExplorePageProps> = ({ onViewPlace, wishlist, onToggleWishlist }) => {
-  const [destination, setDestination] = useState('Pune');
+  const [destination, setDestination] = useState('');
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!destination) return;
+  const fetchSuggestions = async (dest: string) => {
+    if (!dest) return;
     setLoading(true);
     setError(null);
     setSuggestions([]);
     try {
-      const results = await generatePlaceSuggestions(destination);
+      const results = await generatePlaceSuggestions(dest);
       setSuggestions(results);
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchSuggestions(destination);
+  };
+
+  const handleDestinationClick = (destName: string) => {
+    setDestination(destName);
+    fetchSuggestions(destName);
   };
   
   const renderContent = () => {
@@ -78,7 +96,7 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onViewPlace, wishlist, onTogg
       if (error) {
            return (
              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg dark:bg-red-900 dark:text-red-200" role="alert">
-                <p className="font-bold">Failed to get suggestions.</p>
+                <p className="font-bold font-heading">Failed to get suggestions.</p>
                 <p>{error}</p>
             </div>
            );
@@ -104,28 +122,39 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onViewPlace, wishlist, onTogg
       }
       
       return (
-         <div className="text-center py-16 bg-white dark:bg-dark-light rounded-xl shadow-md">
-            <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 16.382V5.618a1 1 0 00-1.447-.894L15 7m-6 10V7m0 0L5 5m4 2l6-3m-6 3l6 10" /></svg>
-            <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-200 mt-4">Discover Your Next Adventure</h2>
-            <p className="text-gray-500 dark:text-gray-400 mt-2">Enter a destination to get AI-powered suggestions.</p>
-          </div>
+         <div className="animate-fade-in">
+            <h2 className="text-3xl font-bold font-heading mb-6 text-center text-dark dark:text-light">Top Destinations</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {topDestinations.map(dest => (
+                <button 
+                    key={dest.name} 
+                    onClick={() => handleDestinationClick(dest.name)} 
+                    className="relative rounded-xl overflow-hidden h-64 group text-white font-bold text-2xl shadow-lg transform hover:scale-105 transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-primary focus:ring-opacity-50"
+                >
+                    <img src={`https://picsum.photos/seed/${dest.imageSeed}/600/400`} alt={dest.name} className="w-full h-full object-cover group-hover:brightness-110 transition-all duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4">
+                    <h3 className='font-heading'>{dest.name}</h3>
+                    </div>
+                </button>
+                ))}
+            </div>
+        </div>
       )
   }
 
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
       <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg mb-8">
-        <h1 className="text-4xl font-extrabold text-center text-dark dark:text-light mb-2">Explore Maharashtra</h1>
-        <p className="text-center text-gray-600 dark:text-gray-400 mb-6">Get smart travel suggestions powered by AI.</p>
-        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 items-end">
+        <h1 className="text-4xl font-extrabold font-heading text-center text-dark dark:text-light mb-2">Explore Maharashtra</h1>
+        <p className="text-center text-gray-600 dark:text-gray-400 mb-6">Get smart travel suggestions powered by AI. Select a top destination or enter your own.</p>
+        <form onSubmit={handleFormSubmit} className="flex flex-col sm:flex-row gap-4 items-end">
           <Input 
             label="Enter a Destination"
             value={destination}
             onChange={(e) => setDestination(e.target.value)}
             placeholder="e.g., Nashik, Aurangabad..."
-            required
           />
-          <Button type="submit" disabled={loading} className="w-full sm:w-auto flex-shrink-0 text-md py-3">
+          <Button type="submit" disabled={loading || !destination} className="w-full sm:w-auto flex-shrink-0 text-md py-3">
              {loading ? 'Discovering...' : 'Get Suggestions'}
           </Button>
         </form>

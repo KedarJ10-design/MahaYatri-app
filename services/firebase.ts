@@ -5,44 +5,55 @@ import 'firebase/compat/firestore';
 import 'firebase/compat/functions';
 
 // Your web app's Firebase configuration
-// This configuration is now exported to be used in other parts of the app, like the error display.
 export const firebaseConfig = {
-  apiKey: "AIzaSyCdPlC6-0xeYvinxK9jNPOsWzKaB5G_keQ",
-  authDomain: "mahayatri-app.firebaseapp.com",
-  projectId: "mahayatri-app",
-  storageBucket: "mahayatri-app.appspot.com",
-  messagingSenderId: "180900962167",
-  appId: "1:180900962167:web:e9a41c98a76825b471cb72"
+  apiKey: "YOUR_API_KEY", // Replace with your actual Firebase config
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
+
+let auth: firebase.auth.Auth | null = null;
+let db: firebase.firestore.Firestore | null = null;
+let functions: firebase.functions.Functions | null = null;
+export let firebaseInitializationError: string | null = null;
 
 // Initialize Firebase only once
 if (!firebase.apps.length) {
-  try {
-    firebase.initializeApp(firebaseConfig);
-  } catch (error) {
-    console.error("Firebase initialization error:", error);
-    // This critical error prevents the app from running.
-    // Display a user-friendly message on the page itself if initialization fails.
-    // We must do this *after* the DOM has loaded.
-    document.addEventListener('DOMContentLoaded', () => {
-        const root = document.getElementById('root');
-        if (root) {
-            root.innerHTML = `
-              <div style="padding: 2rem; text-align: center; font-family: sans-serif; background-color: #fff1f2; color: #b91c1c; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                <h1 style="font-size: 1.5rem; font-weight: bold;">Firebase Configuration Error</h1>
-                <p style="margin-top: 0.5rem;">The application could not start. Please ensure you have a valid Firebase configuration in <strong>services/firebase.ts</strong>.</p>
-              </div>
-            `;
+  // A simple check for placeholder values
+  if (firebaseConfig.apiKey.startsWith("YOUR_")) {
+      firebaseInitializationError = "Firebase configuration is missing. The app will run in offline/mock mode. Please update services/firebase.ts with your project credentials.";
+      console.warn(firebaseInitializationError);
+  } else {
+    try {
+        firebase.initializeApp(firebaseConfig);
+        auth = firebase.auth();
+        db = firebase.firestore();
+        functions = firebase.functions();
+
+        // Connect to emulators if running locally
+        if (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1')) {
+            console.log("Connecting to local Firebase emulators.");
+            auth.useEmulator('http://127.0.0.1:9099');
+            db.useEmulator('127.0.0.1', 8080);
+            functions.useEmulator('127.0.0.1', 5001);
         }
-    });
-    throw new Error("Firebase configuration is missing or invalid. Please update services/firebase.ts.");
+    } catch (error: any) {
+        firebaseInitializationError = `Firebase initialization error: ${error.message}`;
+        console.error(firebaseInitializationError);
+    }
   }
+} else {
+    // If already initialized, just get the instances
+    const app = firebase.app();
+    auth = app.auth();
+    db = app.firestore();
+    functions = app.functions();
 }
 
 // Get references to the services
-export const auth = firebase.auth();
-export const db = firebase.firestore();
-export const functions = firebase.functions();
+export { auth, db, functions };
 export type FirebaseUser = firebase.User;
 export const googleProvider = new firebase.auth.GoogleAuthProvider();
 export const browserLocalPersistence = firebase.auth.Auth.Persistence.LOCAL;

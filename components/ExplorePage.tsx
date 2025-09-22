@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PlaceSuggestion } from '../types';
 import { generatePlaceSuggestions } from '../services/geminiService';
 import Input from './common/Input';
@@ -10,6 +10,8 @@ interface ExplorePageProps {
   onViewPlace: (place: PlaceSuggestion) => void;
   wishlist: PlaceSuggestion[];
   onToggleWishlist: (place: PlaceSuggestion) => void;
+  initialDestination: string;
+  onInitialDestinationConsumed: () => void;
 }
 
 const PlaceSuggestionCard: React.FC<{ place: PlaceSuggestion; onView: () => void; onToggleWishlist: () => void; isFavorite: boolean; }> = ({ place, onView, onToggleWishlist, isFavorite }) => {
@@ -21,7 +23,7 @@ const PlaceSuggestionCard: React.FC<{ place: PlaceSuggestion; onView: () => void
     } as const;
     
     return (
-        <div className="bg-white dark:bg-dark-light rounded-xl shadow-lg p-6 flex flex-col items-start gap-3 transform hover:-translate-y-1 transition-transform duration-300">
+        <div className="bg-white dark:bg-dark-light rounded-xl shadow-md p-6 flex flex-col items-start gap-3 transform hover:-translate-y-1 transition-all duration-300 hover:shadow-xl group dark:hover:shadow-primary/20">
             <div className="w-full flex justify-between items-start">
               <Badge color={typeColorMap[place.type] || 'gray'}>{place.type}</Badge>
               <button onClick={onToggleWishlist} className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors" aria-label="Save to wishlist">
@@ -30,7 +32,7 @@ const PlaceSuggestionCard: React.FC<{ place: PlaceSuggestion; onView: () => void
                 </svg>
               </button>
             </div>
-            <h3 className="text-xl font-bold font-heading text-dark dark:text-light">{place.name}</h3>
+            <h3 className="text-xl font-bold font-heading text-dark dark:text-light group-hover:text-primary transition-colors">{place.name}</h3>
             <p className="text-gray-600 dark:text-gray-400 flex-grow">{place.description}</p>
             <Button onClick={onView} variant="outline" className="w-full mt-2 py-2">View Details</Button>
         </div>
@@ -46,13 +48,13 @@ const topDestinations = [
   { name: 'Lonavala', imageSeed: 'lonavala-valley' },
 ];
 
-const ExplorePage: React.FC<ExplorePageProps> = ({ onViewPlace, wishlist, onToggleWishlist }) => {
+const ExplorePage: React.FC<ExplorePageProps> = ({ onViewPlace, wishlist, onToggleWishlist, initialDestination, onInitialDestinationConsumed }) => {
   const [destination, setDestination] = useState('');
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSuggestions = async (dest: string) => {
+  const fetchSuggestions = useCallback(async (dest: string) => {
     if (!dest) return;
     setLoading(true);
     setError(null);
@@ -65,7 +67,15 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onViewPlace, wishlist, onTogg
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (initialDestination) {
+      setDestination(initialDestination);
+      fetchSuggestions(initialDestination);
+      onInitialDestinationConsumed();
+    }
+  }, [initialDestination, fetchSuggestions, onInitialDestinationConsumed]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,11 +139,11 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onViewPlace, wishlist, onTogg
                 <button 
                     key={dest.name} 
                     onClick={() => handleDestinationClick(dest.name)} 
-                    className="relative rounded-xl overflow-hidden h-64 group text-white font-bold text-2xl shadow-lg transform hover:scale-105 transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-primary focus:ring-opacity-50"
+                    className="relative rounded-xl overflow-hidden h-64 group text-white font-bold text-2xl shadow-md transform hover:-translate-y-1 hover:shadow-xl dark:hover:shadow-primary/20 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary focus:ring-opacity-50"
                 >
-                    <img src={`https://picsum.photos/seed/${dest.imageSeed}/600/400`} alt={dest.name} className="w-full h-full object-cover group-hover:brightness-110 transition-all duration-300" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4">
-                    <h3 className='font-heading'>{dest.name}</h3>
+                    <img src={`https://picsum.photos/seed/${dest.imageSeed}/600/400`} alt={dest.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4 group-hover:from-black/80 transition-colors">
+                    <h3 className='font-heading transition-colors group-hover:text-primary'>{dest.name}</h3>
                     </div>
                 </button>
                 ))}

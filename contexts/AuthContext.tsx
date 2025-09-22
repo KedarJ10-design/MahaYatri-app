@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { User } from '../types';
+import { User, Reward } from '../types';
 import { mockTouristUser, mockGuideUser, mockAdminUser } from '../services/mockData';
-// FIX: Updated imports to match the v8 namespaced API provided by the modified firebase.ts.
 import { 
   auth,
   db, 
   browserLocalPersistence,
   browserSessionPersistence,
-  type FirebaseUser
+  type FirebaseUser,
+  firebaseInitializationError
 } from '../services/firebase';
 
 interface AuthContextType {
@@ -17,6 +17,7 @@ interface AuthContextType {
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateUser: (updatedData: Partial<User>) => Promise<void>;
+  redeemReward: (reward: Reward) => Promise<void>;
   error: string | null;
   setError: (error: string | null) => void;
 }
@@ -39,7 +40,7 @@ const createNewUserProfile = (firebaseUser: FirebaseUser, name?: string): User =
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(firebaseInitializationError);
 
   useEffect(() => {
     try {
@@ -55,28 +56,56 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       sessionStorage.removeItem('mockUser');
     }
 
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-      if (firebaseUser) {
-        // Fetch user profile from Firestore
-        const userDocRef = db.collection('users').doc(firebaseUser.uid);
-        const userDoc = await userDocRef.get();
+    if (!auth || !db) {
+        setLoading(false);
+        return;
+    }
 
-        if (userDoc.exists) {
-            setUser({ id: userDoc.id, ...userDoc.data() } as User);
-        } else {
-            // This is an edge case for users who existed in Auth but not Firestore.
-            // We create a profile for them on-the-fly.
-            console.warn(`No profile found for user ${firebaseUser.uid}, creating one.`);
-            const newUserProfile = createNewUserProfile(firebaseUser);
-            await userDocRef.set(newUserProfile);
-            setUser(newUserProfile);
-        }
+    let unsubscribeUserDoc: (() => void) | undefined;
+
+    const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
+      // Clean up previous user's doc listener before setting up a new one
+      unsubscribeUserDoc?.();
+
+      if (firebaseUser) {
+        setLoading(true);
+        const userDocRef = db.collection('users').doc(firebaseUser.uid);
+        
+        // --- REAL-TIME LISTENER FOR USER PROFILE ---
+        // This subscription ensures the user object in the app is always
+        // in sync with the database.
+        unsubscribeUserDoc = userDocRef.onSnapshot(
+          (doc) => {
+            if (doc.exists) {
+              setUser({ id: doc.id, ...doc.data() } as User);
+            } else {
+              console.warn(`No profile found for user ${firebaseUser.uid}, creating one.`);
+              const newUserProfile = createNewUserProfile(firebaseUser);
+              userDocRef.set(newUserProfile).catch(setErr => {
+                console.error("Failed to create new user profile:", setErr);
+                setError("Could not create your user profile.");
+              });
+              // The listener will automatically set the user state with the new profile.
+            }
+            setLoading(false);
+          },
+          (err) => {
+            console.error("Error listening to user document:", err);
+            setError("Could not load your profile data.");
+            setUser(null);
+            setLoading(false);
+          }
+        );
       } else {
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeUserDoc?.();
+    };
   }, []);
 
   const signIn = async (email: string, password: string, rememberMe: boolean) => {
@@ -106,6 +135,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
+    if (!auth) {
+        const authError = "Authentication service is unavailable due to a configuration error.";
+        setError(authError);
+        setLoading(false);
+        throw new Error(authError);
+    }
+
     try {
       await auth.setPersistence(rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await auth.signInWithEmailAndPassword(email, password);
@@ -127,18 +163,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw new Error(errMessage);
     }
 
+    if (!auth || !db) {
+        const authError = "Sign up is unavailable due to a configuration error.";
+        setError(authError);
+        setLoading(false);
+        throw new Error(authError);
+    }
+
     try {
       const userCredential = await auth.createUserWithEmailAndPassword(email, password);
       const firebaseUser = userCredential.user;
       if (!firebaseUser) throw new Error("User creation failed.");
 
-      // Create and save the new user's profile to Firestore
       const newUserProfile = createNewUserProfile(firebaseUser, name);
       await db.collection('users').doc(firebaseUser.uid).set(newUserProfile);
-      
-      // The onAuthStateChanged listener will automatically pick up the new user,
-      // but we can set it here for a faster UI update.
-      setUser(newUserProfile);
+      // The real-time listener will now set the user state.
 
     } catch (err: any) {
       setError(err.message);
@@ -156,9 +195,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.removeItem('mockUser');
         sessionStorage.removeItem('mockUser');
         setUser(null);
-      } else {
+      } else if (auth) {
         await auth.signOut();
-        // The onAuthStateChanged listener will set the user to null
       }
     } catch (err: any) {
       setError(err.message);
@@ -171,7 +209,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateUser = async (updatedData: Partial<User>) => {
     if (!user) throw new Error("No user is signed in to update.");
     
-    // Handle mock user update in local/session storage
     const mockUserSession = localStorage.getItem('mockUser') || sessionStorage.getItem('mockUser');
     if (mockUserSession) {
         const updatedUser = { ...user, ...updatedData };
@@ -181,19 +218,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return;
     }
 
-    // Handle real user update in Firestore
+    if (!db) {
+        setError("Cannot update profile. Database is not connected.");
+        throw new Error("Database not connected");
+    }
+
     try {
       const userDocRef = db.collection('users').doc(user.id);
       await userDocRef.update(updatedData);
-      setUser(prevUser => {
-        if (!prevUser) return null;
-        return { ...prevUser, ...updatedData };
-      });
+      // State will update automatically via the onSnapshot listener.
     } catch (error) {
       console.error("Error updating user profile:", error);
       setError("Failed to update profile. Please try again.");
       throw error;
     }
+  };
+  
+  const redeemReward = async (reward: Reward) => {
+      if (!user || user.points < reward.pointsRequired) {
+          throw new Error("Cannot redeem reward.");
+      }
+      const updatedUserData = { 
+        points: user.points - reward.pointsRequired,
+        redeemedRewardIds: [...user.redeemedRewardIds, reward.id]
+      };
+      await updateUser(updatedUserData);
   };
 
   const value = {
@@ -203,6 +252,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     signUp,
     signOut: signOutUser,
     updateUser,
+    redeemReward,
     error,
     setError,
   };

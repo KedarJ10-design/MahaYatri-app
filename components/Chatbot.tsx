@@ -9,6 +9,7 @@ const Chatbot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAiAvailable, setIsAiAvailable] = useState(false);
   const chatRef = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
@@ -30,6 +31,12 @@ const Chatbot: React.FC = () => {
 
   useEffect(() => {
     if (isOpen && !chatRef.current && user) {
+        if (!ai) {
+            setIsAiAvailable(false);
+            setMessages([{ sender: 'ai', text: "I'm sorry, the AI assistant is currently offline due to a configuration issue." }]);
+            return;
+        }
+        setIsAiAvailable(true);
         chatRef.current = ai.chats.create({
             model: 'gemini-2.5-flash',
             config: {
@@ -42,7 +49,7 @@ const Chatbot: React.FC = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !isAiAvailable) return;
     
     const userMessage: ChatMessage = { sender: 'user', text: input };
     setMessages(prev => [...prev, userMessage]);
@@ -113,11 +120,11 @@ const Chatbot: React.FC = () => {
                     type="text" 
                     value={input}
                     onChange={e => setInput(e.target.value)}
-                    placeholder="Ask me anything..."
+                    placeholder={isAiAvailable ? "Ask me anything..." : "Assistant is offline"}
                     className="flex-1 p-3 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark focus:ring-2 focus:ring-primary focus:border-transparent transition"
-                    disabled={isLoading}
+                    disabled={isLoading || !isAiAvailable}
                 />
-                <button type="submit" className="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-50" disabled={isLoading || !input.trim()}>
+                <button type="submit" className="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-50" disabled={isLoading || !input.trim() || !isAiAvailable}>
                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                 </button>
             </form>

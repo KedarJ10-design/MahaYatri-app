@@ -7,9 +7,10 @@ interface HomePageProps {
   onNavigate: (page: Page) => void;
   onViewGuide: (guide: Guide) => void;
   guides: Guide[];
+  onExploreDestination: (destination: string) => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onNavigate, onViewGuide, guides }) => {
+const HomePage: React.FC<HomePageProps> = ({ onNavigate, onViewGuide, guides, onExploreDestination }) => {
   const featuredGuides = guides.filter(g => g.verificationStatus === 'verified').slice(0, 4);
   
   return (
@@ -54,17 +55,17 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate, onViewGuide, guides }) 
       
       {/* New Features CTA */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="relative rounded-xl overflow-hidden h-72 group">
+        <div className="relative rounded-xl overflow-hidden h-72 group shadow-md transform hover:-translate-y-1 hover:shadow-xl dark:hover:shadow-primary/20 transition-all duration-300">
             <img src="https://picsum.photos/seed/maharashtrian-food/600/400" alt="Local Food" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-center items-center p-4 text-center text-white">
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-center items-center p-4 text-center text-white group-hover:bg-opacity-60 transition-colors">
                 <h3 className="text-3xl font-bold font-heading mb-3">Taste Local Flavors</h3>
                 <p className="mb-6">Discover the best authentic food from local vendors.</p>
                 <Button onClick={() => onNavigate(Page.Vendors)} variant="outline" className="text-white border-white hover:bg-white hover:text-dark dark:text-white dark:border-white dark:hover:bg-white dark:hover:text-dark">Find Eateries</Button>
             </div>
         </div>
-        <div className="relative rounded-xl overflow-hidden h-72 group">
+        <div className="relative rounded-xl overflow-hidden h-72 group shadow-md transform hover:-translate-y-1 hover:shadow-xl dark:hover:shadow-primary/20 transition-all duration-300">
             <img src="https://picsum.photos/seed/maharashtra-homestay/600/400" alt="Homestay" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-center items-center p-4 text-center text-white">
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-center items-center p-4 text-center text-white group-hover:bg-opacity-60 transition-colors">
                 <h3 className="text-3xl font-bold font-heading mb-3">Find Comfortable Stays</h3>
                 <p className="mb-6">Book hotels and homestays approved by locals.</p>
                 <Button onClick={() => onNavigate(Page.Stays)} variant="outline" className="text-white border-white hover:bg-white hover:text-dark dark:text-white dark:border-white dark:hover:bg-white dark:hover:text-dark">Find Stays</Button>
@@ -80,14 +81,18 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate, onViewGuide, guides }) 
           {['Mumbai-Gateway', 'Pune-Fort', 'Aurangabad-Caves', 'Nashik-Vineyard', 'Mahabaleshwar-Hills', 'Lonavala-Valley'].map(item => {
             const cityName = item.split('-')[0];
             return (
-                <div key={item} className="relative rounded-xl shadow-lg overflow-hidden h-64 group">
+                <button 
+                    key={item} 
+                    onClick={() => onExploreDestination(cityName)}
+                    className="relative rounded-xl shadow-md overflow-hidden h-64 group text-left transform hover:-translate-y-1 hover:shadow-xl dark:hover:shadow-primary/20 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary/50"
+                >
                     <img src={`https://picsum.photos/seed/${item.toLowerCase()}/600/400`} alt={cityName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent transition-all duration-300 group-hover:from-black/80" />
                     <div className="absolute inset-0 flex flex-col justify-end p-4 text-white">
-                        <h3 className="text-2xl font-bold font-heading transform transition-transform duration-300 group-hover:-translate-y-1">{cityName}</h3>
-                        <p className="text-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100">Explore destination &rarr;</p>
+                        <h3 className="text-2xl font-bold font-heading transform transition-transform duration-300 group-hover:-translate-y-2 group-hover:text-primary transition-colors">{cityName}</h3>
+                        <p className="text-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-hover:-translate-y-1">Explore destination &rarr;</p>
                     </div>
-                </div>
+                </button>
             )
           })}
         </div>

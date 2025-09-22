@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import { PlaceSuggestion, DetailedItinerary, User } from '../types';
 import { generateCustomItinerary } from '../services/geminiService';
@@ -107,7 +109,7 @@ const TripPlannerPage: React.FC<TripPlannerPageProps> = ({ onItineraryGenerated,
                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Travel Interests</label>
                  <div className="flex flex-wrap gap-2">
                     {interestOptions.map(interest => (
-                        <button type="button" key={interest} onClick={() => handleInterestToggle(interest)} className={`px-3 py-2 text-sm rounded-full border-2 transition-colors ${params.interests.includes(interest) ? 'bg-primary text-white border-primary' : 'bg-transparent text-primary border-primary dark:text-orange-400 dark:border-orange-400'}`}>
+                        <button type="button" key={interest} onClick={() => handleInterestToggle(interest)} className={`px-3 py-2 text-sm rounded-full border-2 transition-all transform hover:-translate-y-px ${params.interests.includes(interest) ? 'bg-primary text-white border-primary hover:bg-primary/90' : 'bg-transparent text-primary border-primary hover:bg-primary hover:text-white dark:text-orange-400 dark:border-orange-400 dark:hover:bg-primary dark:hover:text-white'}`}>
                             {interest}
                         </button>
                     ))}
@@ -117,7 +119,7 @@ const TripPlannerPage: React.FC<TripPlannerPageProps> = ({ onItineraryGenerated,
                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Budget Style</label>
                  <div className="flex justify-center bg-light dark:bg-dark p-1 rounded-full">
                     {(['budget', 'mid-range', 'luxury'] as const).map(style => (
-                        <button type="button" key={style} onClick={() => handleParamChange('budgetStyle', style)} className={`w-1/3 px-3 py-2 text-sm rounded-full font-semibold transition-colors capitalize ${params.budgetStyle === style ? 'bg-primary text-white shadow' : 'text-gray-600 dark:text-gray-300'}`}>
+                        <button type="button" key={style} onClick={() => handleParamChange('budgetStyle', style)} className={`w-1/3 px-3 py-2 text-sm rounded-full font-semibold transition-colors capitalize ${params.budgetStyle === style ? 'bg-primary text-white shadow hover:bg-primary/90' : 'text-gray-600 dark:text-gray-300 hover:bg-primary/20'}`}>
                             {style}
                         </button>
                     ))}

@@ -1,12 +1,14 @@
-import React from 'react';
-import { Page, User } from '../types';
+import React, { useState, useEffect } from 'react';
+import { User, Page, Notification } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../hooks/useTheme';
 
 interface HeaderProps {
-  onNavigate: (page: Page) => void;
+  user: User | null;
   currentPage: Page;
-  user: User;
+  onNavigate: (page: Page) => void;
+  notifications: Notification[];
+  onUpdateNotifications: (notifications: Notification[]) => void;
 }
 
 const NavLink: React.FC<{
@@ -14,92 +16,161 @@ const NavLink: React.FC<{
   currentPage: Page;
   onNavigate: (page: Page) => void;
   children: React.ReactNode;
-  icon: React.ReactNode;
-}> = ({ page, currentPage, onNavigate, children, icon }) => {
-  const isActive = currentPage === page;
+  isMobile?: boolean;
+}> = ({ page, currentPage, onNavigate, children, isMobile }) => {
+  const baseClasses = `transition-colors text-left ${isMobile ? 'w-full block px-4 py-3 text-lg' : 'px-3 py-2 rounded-md text-sm font-medium'}`;
+  const activeClasses = isMobile ? 'bg-primary text-white' : 'bg-primary text-white';
+  const inactiveClasses = isMobile 
+    ? 'text-gray-700 dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-primary/30' 
+    : 'text-gray-700 dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-primary/30 hover:text-primary';
+
   return (
     <button
       onClick={() => onNavigate(page)}
-      className={`flex items-center space-x-2 px-3 py-2 text-sm lg:text-md font-medium rounded-lg transition-colors duration-200 ${
-        isActive
-          ? 'text-primary bg-orange-100 dark:bg-dark-light'
-          : 'text-gray-600 dark:text-gray-300 hover:text-primary hover:bg-orange-50 dark:hover:bg-dark-lighter'
-      }`}
+      className={`${baseClasses} ${currentPage === page ? activeClasses : inactiveClasses}`}
     >
-      {icon}
-      <span className="hidden md:inline">{children}</span>
+      {children}
     </button>
   );
 };
 
-const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage, user }) => {
-  const { signOut: logout } = useAuth();
+const Header: React.FC<HeaderProps> = ({ user, currentPage, onNavigate, notifications, onUpdateNotifications }) => {
+  const { signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  if (!user) return null;
 
-  const renderNavLinks = () => {
-    switch (user.role) {
-      case 'guide':
-        return (
-          <NavLink page={Page.GuideDashboard} currentPage={currentPage} onNavigate={onNavigate} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L16 11.414V15a1 1 0 01-1 1H5a1 1 0 01-1-1v-3.586L3.293 6.707A1 1 0 013 6V3zm3 1a1 1 0 011-1h6a1 1 0 011 1v1a1 1 0 01-1 1H7a1 1 0 01-1-1V4zm2 8a1 1 0 011-1h2a1 1 0 011 1v1a1 1 0 01-1 1H9a1 1 0 01-1-1v-1z" clipRule="evenodd" /></svg>}>Dashboard</NavLink>
-        );
-      case 'admin':
-        return (
-           <NavLink page={Page.Admin} currentPage={currentPage} onNavigate={onNavigate} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" /></svg>}>Admin Panel</NavLink>
-        );
-      case 'user':
-      default:
-        return (
-          <>
-            <NavLink page={Page.Home} currentPage={currentPage} onNavigate={onNavigate} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>}>Home</NavLink>
-            <NavLink page={Page.Search} currentPage={currentPage} onNavigate={onNavigate} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>}>Guides</NavLink>
-            <NavLink page={Page.Vendors} currentPage={currentPage} onNavigate={onNavigate} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2 2a1 1 0 011 1v1.586l.707-.707a1 1 0 011.414 0L6.5 4.293l.293-.293a1 1 0 011.414 0L9.5 5.293l.293-.293a1 1 0 011.414 0L12.5 6.293l.293-.293a1 1 0 011.414 0L15.5 7.293l.293-.293a1 1 0 011.414 0l.707.707V3a1 1 0 112 0v1.586l.707-.707a1 1 0 111.414 1.414L19.414 6.5l.293.293a1 1 0 11-1.414 1.414L17.586 7.5l-1.293 1.293a1 1 0 01-1.414 0L13.586 7.5l-1.293 1.293a1 1 0 01-1.414 0L9.586 7.5 8.293 8.793a1 1 0 01-1.414 0L5.586 7.5 4.293 8.793a1 1 0 01-1.414 0L2 7.914V15a1 1 0 01-1 1H1a1 1 0 110-2h.586L12 3.414l1.707 1.707a1 1 0 010 1.414L12.414 7.828 11.707 7.121a1 1 0 00-1.414 0L9 8.414l-1.293-1.293a1 1 0 00-1.414 0L5 8.414 3.707 7.121a1 1 0 00-1.414 0L1.586 7.828a1 1 0 01-1.414-1.414L2 4.707V3a1 1 0 01-1-1H1a1 1 0 110-2h1zM18 11a1 1 0 100 2h-4a1 1 0 100 2h4a1 1 0 100-2zm-6 2a1 1 0 100 2H8a1 1 0 100-2h4z" /></svg>}>Vendors</NavLink>
-            <NavLink page={Page.Stays} currentPage={currentPage} onNavigate={onNavigate} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.706-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-2.172 4.243a1 1 0 111.414 1.414l.707-.707a1 1 0 11-1.414-1.414l-.707.707zM3 11a1 1 0 100-2H2a1 1 0 100 2h1zm2.172 4.243l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4.464 4.95l-.707-.707a1 1 0 00-1.414 1.414l.707.707a1 1 0 001.414-1.414z" /></svg>}>Stays</NavLink>
-            <NavLink page={Page.Explore} currentPage={currentPage} onNavigate={onNavigate} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12 1.586l-4 4v12.828l4-4V1.586zM3.707 3.293A1 1 0 002 4v12a1 1 0 00.293.707L6 20.414V3.586L3.707 3.293zM17.707 5.293L14 1.586v16.828l3.707-3.707A1 1 0 0018 14V6a1 1 0 00-.293-.707z" clipRule="evenodd" /></svg>}>Explore</NavLink>
-            <NavLink page={Page.TripPlanner} currentPage={currentPage} onNavigate={onNavigate} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 17a1 1 0 001.447.894l4-2A1 1 0 0017 15V5a1 1 0 00-.553-.894l-4-2A1 1 0 0011 3v14z" /><path d="M7 4a1 1 0 00-1.447-.894l-4 2A1 1 0 001 6v10a1 1 0 00.553.894l4 2A1 1 0 007 18V4z" /></svg>}>AI Planner</NavLink>
-            <NavLink page={Page.Chat} currentPage={currentPage} onNavigate={onNavigate} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm1.5 0a.5.5 0 00-.5.5v1.293l6.646 3.323a.5.5 0 00.708 0L17 6.793V5.5a.5.5 0 00-.5-.5h-13zM1 7.293l6.224 3.112a1.5 1.5 0 002.112 0L19 7.293V11a1 1 0 01-1 1H2a1 1 0 01-1-1V7.293z" /></svg>}>Messages</NavLink>
-          </>
-        );
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.classList.add('no-scroll');
+    } else {
+      document.body.classList.remove('no-scroll');
     }
-  };
+    return () => {
+      document.body.classList.remove('no-scroll');
+    };
+  }, [isMobileMenuOpen]);
 
-  const getProfilePage = () => {
-    switch(user.role) {
-      case 'guide': return Page.GuideDashboard;
-      case 'admin': return Page.Admin;
-      case 'user':
-      default:
-        return Page.Profile;
+  const handleMobileNav = (page: Page) => {
+    onNavigate(page);
+    setIsMobileMenuOpen(false);
+  };
+  
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleMarkAllAsRead = () => {
+      onUpdateNotifications(notifications.map(n => ({...n, read: true})));
+  }
+
+  const getNotificationIcon = (type: Notification['type']) => {
+    switch (type) {
+        case 'booking': return <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-accent" viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" /><path fillRule="evenodd" d="M4 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h4a1 1 0 100-2H7z" clipRule="evenodd" /></svg>;
+        case 'message': return <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 1.293a1 1 0 011.414 0L10 8.586l3.293-2.293a1 1 0 111.414 1.414l-4 3a1 1 0 01-1.414 0l-4-3a1 1 0 010-1.414z" /></svg>;
+        case 'system': return <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>;
     }
   }
+  
+  const renderNavLinks = (isMobile = false) => {
+      const navFn = isMobile ? handleMobileNav : onNavigate;
+      return (
+        <>
+            {user.role === 'user' && (
+                <>
+                    <NavLink page={Page.Home} currentPage={currentPage} onNavigate={navFn} isMobile={isMobile}>Home</NavLink>
+                    <NavLink page={Page.Explore} currentPage={currentPage} onNavigate={navFn} isMobile={isMobile}>Explore</NavLink>
+                    <NavLink page={Page.Search} currentPage={currentPage} onNavigate={navFn} isMobile={isMobile}>Guides</NavLink>
+                    <NavLink page={Page.TripPlanner} currentPage={currentPage} onNavigate={navFn} isMobile={isMobile}>Trip Planner</NavLink>
+                    <NavLink page={Page.Stays} currentPage={currentPage} onNavigate={navFn} isMobile={isMobile}>Stays</NavLink>
+                    <NavLink page={Page.Vendors} currentPage={currentPage} onNavigate={navFn} isMobile={isMobile}>Vendors</NavLink>
+                </>
+            )}
+            {user.role === 'guide' && <NavLink page={Page.GuideDashboard} currentPage={currentPage} onNavigate={navFn} isMobile={isMobile}>Dashboard</NavLink>}
+            {user.role === 'admin' && <NavLink page={Page.Admin} currentPage={currentPage} onNavigate={navFn} isMobile={isMobile}>Admin Panel</NavLink>}
+        </>
+      )
+  };
 
 
   return (
-    <header className="bg-white dark:bg-dark-light shadow-md sticky top-0 z-50 transition-colors duration-300">
-      <nav className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center space-x-2 cursor-pointer" onClick={() => onNavigate(user.role === 'user' ? Page.Home : getProfilePage())}>
-          <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-          <span className="text-2xl font-bold font-heading text-dark dark:text-light">MahaYatri</span>
-        </div>
-        <div className="flex-grow flex justify-center items-center space-x-1 sm:space-x-2">
+    <>
+    <header className="bg-white dark:bg-dark-light shadow-md sticky top-0 z-40">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center">
+             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden mr-4 p-2 rounded-md text-gray-600 dark:text-gray-300">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <button onClick={() => onNavigate(Page.Home)} className="flex-shrink-0 flex items-center gap-2">
+              <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+              <span className="text-xl font-bold font-heading text-dark dark:text-light">MahaYatri</span>
+            </button>
+          </div>
+          <nav className="hidden md:flex items-center space-x-4">
             {renderNavLinks()}
+          </nav>
+          <div className="flex items-center gap-2 md:gap-4">
+            <button onClick={toggleTheme} className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-primary/30 hover:text-primary transition-colors">
+                {theme === 'light' ? 
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg> : 
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                }
+            </button>
+            <div className="relative group py-2 -my-2">
+                 <button className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-primary/30 hover:text-primary transition-colors relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                    {unreadCount > 0 && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-dark-light"></span>}
+                </button>
+                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-dark-light rounded-md shadow-lg ring-1 ring-black ring-opacity-5 opacity-0 group-hover:opacity-100 transition-opacity invisible group-hover:visible z-50">
+                    <div className="p-3 flex justify-between items-center border-b dark:border-gray-700">
+                        <h3 className="font-semibold">Notifications</h3>
+                        <button onClick={handleMarkAllAsRead} className="text-xs text-primary hover:underline" disabled={unreadCount === 0}>Mark all as read</button>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                        {notifications.map(n => (
+                            <div key={n.id} className={`p-3 flex items-start gap-3 transition-colors duration-200 hover:bg-primary/20 dark:hover:bg-primary/30 ${!n.read ? 'bg-primary/5 dark:bg-primary/10' : ''}`}>
+                                <div className="flex-shrink-0 mt-1">{getNotificationIcon(n.type)}</div>
+                                <p className="text-sm">{n.message}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <div className="relative group py-2 -my-2">
+              <div className="flex items-center gap-2 cursor-pointer p-2 -m-2 rounded-lg transition-colors group-hover:bg-primary/20 dark:group-hover:bg-primary/30">
+                <img className="h-10 w-10 rounded-full" src={user.avatarUrl} alt={user.name} />
+                <span className="hidden sm:block font-semibold">{user.name}</span>
+              </div>
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-dark-light rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 opacity-0 group-hover:opacity-100 transition-opacity invisible group-hover:visible z-50">
+                <button onClick={() => onNavigate(Page.Profile)} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary/20 hover:text-primary dark:hover:bg-primary/30 w-full text-left transition-colors">My Profile</button>
+                <button onClick={() => onNavigate(Page.Chat)} className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-primary/20 hover:text-primary dark:hover:bg-primary/30 w-full text-left transition-colors">Messages</button>
+                <button onClick={signOut} className="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left transition-colors">Sign Out</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-           <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-lighter transition" aria-label="Toggle theme">
-             {theme === 'dark' ? 
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg> :
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-             }
-          </button>
-          <button onClick={() => onNavigate(getProfilePage())} className="flex items-center space-x-2 p-1 pr-3 rounded-full hover:bg-gray-100 dark:hover:bg-dark-lighter transition">
-            <img src={user?.avatarUrl} alt={user?.name} className="w-9 h-9 rounded-full border-2 border-primary" />
-            <span className="font-medium hidden sm:block text-dark dark:text-light">{user?.name.split(' ')[0]}</span>
-          </button>
-          <button onClick={logout} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-lighter transition" aria-label="Logout">
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-          </button>
-        </div>
-      </nav>
+      </div>
     </header>
+
+    {/* Mobile Menu */}
+    <div className={`fixed inset-0 z-50 md:hidden ${isMobileMenuOpen ? 'block' : 'hidden'}`}>
+        {/* Overlay */}
+        <div className="fixed inset-0 bg-black/50" onClick={() => setIsMobileMenuOpen(false)}></div>
+        
+        {/* Menu */}
+        <div className={`fixed top-0 left-0 bottom-0 w-4/5 max-w-sm bg-light dark:bg-dark shadow-lg mobile-nav ${isMobileMenuOpen ? 'open' : ''}`}>
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <span className="text-xl font-bold font-heading text-dark dark:text-light">Menu</span>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <nav className="p-4 space-y-2">
+                {renderNavLinks(true)}
+            </nav>
+        </div>
+    </div>
+    </>
   );
 };
 

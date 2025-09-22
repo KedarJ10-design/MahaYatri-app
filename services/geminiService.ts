@@ -3,11 +3,16 @@ import { Itinerary, PlaceSuggestion, PlaceDetails, CostEstimate, DetailedItinera
 
 const API_KEY = process.env.API_KEY;
 
-if (!API_KEY) {
-  console.error("API_KEY environment variable not set.");
+let ai: GoogleGenAI | null = null;
+if (API_KEY) {
+    try {
+        ai = new GoogleGenAI({ apiKey: API_KEY });
+    } catch (e) {
+        console.error("Failed to initialize GoogleGenAI:", e);
+    }
+} else {
+  console.error("API_KEY environment variable not set. AI features will be disabled.");
 }
-
-export const ai = new GoogleGenAI({ apiKey: API_KEY! });
 
 const parseJsonResponse = <T>(jsonText: string): T => {
     const cleanJsonText = jsonText.replace(/^```json\s*|```$/g, '').trim();
@@ -152,7 +157,7 @@ interface CustomItineraryParams {
 }
 
 export const generateCustomItinerary = async (params: CustomItineraryParams): Promise<DetailedItinerary> => {
-  if (!API_KEY) throw new Error("Gemini API key is not configured.");
+  if (!ai) throw new Error("Gemini AI service is not available. Please configure the API Key.");
   const primaryDestination = params.mustVisit[0]?.destination || 'Maharashtra';
 
   // Constructing the USER_PROMPT JSON object
@@ -194,7 +199,7 @@ export const generateCustomItinerary = async (params: CustomItineraryParams): Pr
 };
 
 export const generatePlaceSuggestions = async (destination: string): Promise<PlaceSuggestion[]> => {
-    if (!API_KEY) throw new Error("Gemini API key is not configured.");
+    if (!ai) throw new Error("Gemini AI service is not available. Please configure the API Key.");
     const prompt = `Provide a diverse list of tourist suggestions for ${destination}, Maharashtra. Include famous attractions, a hidden gem, a local restaurant, and a unique activity.`;
 
     try {
@@ -212,7 +217,7 @@ export const generatePlaceSuggestions = async (destination: string): Promise<Pla
 };
 
 export const generatePlaceDetails = async (placeName: string, destination: string): Promise<PlaceDetails> => {
-    if (!API_KEY) throw new Error("Gemini API key is not configured.");
+    if (!ai) throw new Error("Gemini AI service is not available. Please configure the API Key.");
     const prompt = `For a tourist visiting "${placeName}" in ${destination}, Maharashtra, provide essential details.`;
     
     try {
@@ -229,7 +234,7 @@ export const generatePlaceDetails = async (placeName: string, destination: strin
 };
 
 export const estimateTripCost = async (itinerary: DetailedItinerary): Promise<CostEstimate> => {
-    if (!API_KEY) throw new Error("Gemini API key is not configured.");
+    if (!ai) throw new Error("Gemini AI service is not available. Please configure the API Key.");
     
     // Create a simplified text representation of the itinerary for the prompt
     const itineraryString = itinerary.days.map(day => 
@@ -255,7 +260,7 @@ export const estimateTripCost = async (itinerary: DetailedItinerary): Promise<Co
 };
 
 export const translateText = async (text: string, targetLanguage: string): Promise<string> => {
-    if (!API_KEY) throw new Error("Gemini API key is not configured.");
+    if (!ai) throw new Error("Gemini AI service is not available. Please configure the API Key.");
     const prompt = `Translate the following text to ${targetLanguage}. Return only the translated text, without any introductory phrases, explanations, or quotation marks. The output should be the pure translation. Text to translate: "${text}"`;
     
     try {
@@ -269,3 +274,6 @@ export const translateText = async (text: string, targetLanguage: string): Promi
         throw new Error(`Failed to translate: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 };
+
+// Export the 'ai' instance for use in components like the chatbot
+export { ai };

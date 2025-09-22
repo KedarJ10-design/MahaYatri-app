@@ -1,602 +1,521 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { User, Guide, Booking, BookingStatus, Page, Achievement, PlaceSuggestion, Reward, Review, VendorBooking, Vendor } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Page, User, Guide, Booking, PlaceSuggestion, Review, VendorBooking, Vendor, Reward, BookingStatus, ToastMessage, StayBooking, Conversation } from '../types';
 import Button from './common/Button';
-import Badge from './Badge';
+import GuideApplicationModal from './GuideApplicationModal';
 import StarRating from './StarRating';
 import Input from './common/Input';
+import Badge from './Badge';
+import GuideAvailabilityViewer from './common/GuideAvailabilityViewer';
+import { db } from '../services/firebase';
+import { useAuth } from '../contexts/AuthContext';
 import Spinner from './common/Spinner';
-import GuideApplicationModal from './GuideApplicationModal';
+
+const getStatusBadgeColor = (status: BookingStatus) => {
+    switch (status) {
+        case BookingStatus.Pending: return 'yellow';
+        case BookingStatus.Confirmed: return 'blue';
+        case BookingStatus.Completed: return 'green';
+        case BookingStatus.Cancelled: return 'red';
+        default: return 'gray';
+    }
+};
+
+
+const EmptyState: React.FC<{
+    icon: React.ReactNode;
+    title: string;
+    message: string;
+    action?: { label: string; onClick: () => void };
+}> = ({ icon, title, message, action }) => (
+    <div className="text-center py-12">
+        <div className="mx-auto w-16 h-16 flex items-center justify-center bg-primary/10 text-primary rounded-full mb-4">
+            {icon}
+        </div>
+        <h3 className="font-bold text-xl text-dark dark:text-light">{title}</h3>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">{message}</p>
+        {action && <Button onClick={action.onClick} className="mt-6">{action.label}</Button>}
+    </div>
+);
+
+
+const WishlistTab: React.FC<{ 
+    wishlist: PlaceSuggestion[], 
+    onViewPlace: (p: PlaceSuggestion) => void,
+    onGenerateFromWishlist: () => void,
+    onNavigateToExplore: () => void,
+}> = ({ wishlist, onViewPlace, onGenerateFromWishlist, onNavigateToExplore }) => {
+    const [sortBy, setSortBy] = useState<'default' | 'destination' | 'type'>('default');
+
+    const sortedWishlist = useMemo(() => {
+        const sorted = [...wishlist];
+        if (sortBy === 'destination') {
+            sorted.sort((a, b) => a.destination.localeCompare(b.destination));
+        } else if (sortBy === 'type') {
+            sorted.sort((a, b) => a.type.localeCompare(b.type));
+        }
+        return sorted;
+    }, [wishlist, sortBy]);
+
+    const SortButton: React.FC<{ sortKey: 'default' | 'destination' | 'type', children: React.ReactNode }> = ({ sortKey, children }) => (
+        <Button
+            size="sm"
+            variant={sortBy === sortKey ? 'primary' : 'ghost'}
+            onClick={() => setSortBy(sortKey)}
+            className="capitalize"
+        >
+            {children}
+        </Button>
+    );
+    
+    if (wishlist.length === 0) {
+        return (
+            <EmptyState
+                icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 016.364 0L12 7.5l1.318-1.182a4.5 4.5 0 116.364 6.364L12 21l-7.682-7.682a4.5 4.5 0 010-6.364z" /></svg>}
+                title="Your Wishlist is Empty"
+                message="Save places you'd love to visit from the Explore page."
+                action={{ label: 'Start Exploring', onClick: onNavigateToExplore }}
+            />
+        );
+    }
+
+    return (
+        <div>
+            <div className="flex flex-wrap justify-between items-center mb-4 gap-4">
+                <h3 className="text-xl font-bold">My Wishlist</h3>
+                <Button onClick={onGenerateFromWishlist} variant="secondary">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 inline-block" viewBox="0 0 20 20" fill="currentColor">
+                       <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v2a2 2 0 01-2 2H7a2 2 0 01-2-2V4zM5 12a2 2 0 012-2h6a2 2 0 012 2v2a2 2 0 01-2 2H7a2 2 0 01-2-2v-2zM11 18a1 1 0 10-2 0v-2a1 1 0 102 0v2z" />
+                    </svg>
+                    Generate Itinerary
+                </Button>
+            </div>
+            
+            <div className="flex items-center gap-2 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Sort by:</span>
+                <SortButton sortKey="default">Default</SortButton>
+                <SortButton sortKey="destination">Destination</SortButton>
+                <SortButton sortKey="type">Type</SortButton>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {sortedWishlist.map(place => (
+                    <div key={`${place.name}-${place.destination}`} className="p-4 bg-light dark:bg-dark rounded-lg shadow flex flex-col hover:shadow-lg transform hover:-translate-y-px transition-all duration-300">
+                        <h4 className="font-bold text-dark dark:text-light">{place.name}</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{place.destination}</p>
+                        <div className="mt-2 mb-3">
+                          <Badge>{place.type}</Badge>
+                        </div>
+                        <Button variant="outline" className="mt-auto w-full text-sm py-1" onClick={() => onViewPlace(place)}>View Details</Button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+const BookingsTab: React.FC<{ user: User, onOpenReviewModal: (b: Booking) => void }> = ({ user, onOpenReviewModal }) => {
+    const [bookings, setBookings] = useState<Booking[]>([]);
+    const [vendorBookings, setVendorBookings] = useState<VendorBooking[]>([]);
+    const [stayBookings, setStayBookings] = useState<StayBooking[]>([]);
+    const [guides, setGuides] = useState<Guide[]>([]);
+    const [vendors, setVendors] = useState<Vendor[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!db || !user?.id) return;
+        setLoading(true);
+        const unsubscribes: (()=>void)[] = [];
+
+        unsubscribes.push(db.collection('bookings').where('userId', '==', user.id).onSnapshot(snap => 
+            setBookings(snap.docs.map(d => ({id: d.id, ...d.data()} as Booking)))
+        ));
+        unsubscribes.push(db.collection('vendorBookings').where('userId', '==', user.id).onSnapshot(snap => 
+            setVendorBookings(snap.docs.map(d => ({id: d.id, ...d.data()} as VendorBooking)))
+        ));
+        unsubscribes.push(db.collection('stayBookings').where('userId', '==', user.id).onSnapshot(snap => 
+            setStayBookings(snap.docs.map(d => ({id: d.id, ...d.data()} as StayBooking)))
+        ));
+        // Also fetch guides and vendors for name lookups
+        unsubscribes.push(db.collection('guides').onSnapshot(snap => 
+            setGuides(snap.docs.map(d => ({id: d.id, ...d.data()} as Guide)))
+        ));
+        unsubscribes.push(db.collection('vendors').onSnapshot(snap => {
+            setVendors(snap.docs.map(d => ({id: d.id, ...d.data()} as Vendor)));
+            setLoading(false); // Assume this is the last one
+        }));
+
+        return () => unsubscribes.forEach(unsub => unsub());
+    }, [user.id]);
+
+    const allBookings = useMemo(() => [
+        ...bookings.map(b => ({...b, type: 'guide', date: b.startDate})),
+        ...vendorBookings.map(b => ({...b, type: 'vendor', date: b.date}))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [bookings, vendorBookings]);
+
+    if (loading) {
+        return <div className="flex justify-center py-12"><Spinner /></div>;
+    }
+
+    if (allBookings.length === 0) {
+        return (
+             <EmptyState
+                icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>}
+                title="No Bookings Yet"
+                message="Your upcoming and past trips will appear here."
+            />
+        )
+    }
+
+    return (
+    <div>
+        <h3 className="text-xl font-bold mb-4">My Bookings</h3>
+        <div className="space-y-4">
+            {allBookings.map(booking => {
+                 if ('guideId' in booking && booking.type === 'guide') {
+                    const guide = guides.find(g => g.id === booking.guideId);
+                    return (
+                        <div key={booking.id} className="p-4 bg-light dark:bg-dark rounded-lg shadow flex flex-col sm:flex-row justify-between sm:items-center gap-4 transition-all transform hover:-translate-y-px hover:shadow-md">
+                            <div>
+                                <h4 className="font-bold">Tour with {guide?.name || 'a guide'}</h4>
+                                <p className="text-sm text-gray-500">{new Date(booking.startDate).toDateString()} - {new Date(booking.endDate).toDateString()}</p>
+                                <div className="mt-2">
+                                    <Badge color={getStatusBadgeColor(booking.status)}>{booking.status}</Badge>
+                                </div>
+                            </div>
+                            {booking.status === BookingStatus.Completed && !booking.hasBeenReviewed && <Button onClick={() => onOpenReviewModal(booking)}>Leave a Review</Button>}
+                        </div>
+                    );
+                 }
+                 if ('vendorId' in booking && booking.type === 'vendor') {
+                    const vendor = vendors.find(v => v.id === booking.vendorId);
+                    return (
+                         <div key={booking.id} className="p-4 bg-light dark:bg-dark rounded-lg shadow flex flex-col sm:flex-row justify-between sm:items-center gap-4 transition-all transform hover:-translate-y-px hover:shadow-md">
+                            <div>
+                                <h4 className="font-bold">Reservation at {vendor?.name || 'a vendor'}</h4>
+                                <p className="text-sm text-gray-500">{new Date(booking.date).toDateString()} at {booking.time}</p>
+                            </div>
+                        </div>
+                    );
+                 }
+                return null;
+            })}
+        </div>
+    </div>
+)};
+const RewardsTab: React.FC<{ user: User, onRedeemReward: (r: Reward) => Promise<void>, addToast: (m: string, t: ToastMessage['type']) => void }> = ({ user, onRedeemReward, addToast }) => {
+    const [loadingRewardId, setLoadingRewardId] = useState<string | null>(null);
+    // Mock rewards for demonstration
+    const allRewards: Reward[] = [
+        { id: 'reward-1', title: '10% Off Next Tour', description: 'Get 10% off your next booking with any guide.', pointsRequired: 1000, icon: '🎁' },
+        { id: 'reward-2', title: 'Free Coffee', description: 'Enjoy a free coffee at a partner cafe.', pointsRequired: 500, icon: '☕' },
+        { id: 'reward-3', title: 'Souvenir Discount', description: 'Get 20% off at select souvenir shops.', pointsRequired: 1500, icon: '🛍️' },
+    ];
+    
+    const handleRedeemClick = async (reward: Reward) => {
+        setLoadingRewardId(reward.id);
+        try {
+            await onRedeemReward(reward);
+            addToast(`Redeemed "${reward.title}"!`, 'success');
+        } catch (error) {
+            console.error(error);
+            addToast("Failed to redeem reward.", 'error');
+        } finally {
+            setLoadingRewardId(null);
+        }
+    }
+
+    return (
+        <div>
+            <div className="p-4 bg-primary/10 rounded-lg mb-6 text-center">
+                <p className="text-lg">Your Points</p>
+                <p className="text-4xl font-bold text-primary">{user.points}</p>
+            </div>
+            <h3 className="text-xl font-bold mb-4">Available Rewards</h3>
+            <div className="space-y-4">
+            {allRewards.map(reward => {
+                const isRedeemed = user.redeemedRewardIds.includes(reward.id);
+                const canAfford = user.points >= reward.pointsRequired;
+                return (
+                    <div key={reward.id} className="p-4 bg-light dark:bg-dark rounded-lg shadow flex justify-between items-center transition-all transform hover:-translate-y-px hover:shadow-md">
+                        <div>
+                            <h4 className="font-bold">{reward.title}</h4>
+                            <p className="text-sm text-gray-500">{reward.description}</p>
+                            <p className="text-sm font-semibold">{reward.pointsRequired} Points</p>
+                        </div>
+                        <Button onClick={() => handleRedeemClick(reward)} disabled={isRedeemed || !canAfford} loading={loadingRewardId === reward.id}>
+                            {isRedeemed ? 'Redeemed' : 'Redeem'}
+                        </Button>
+                    </div>
+                );
+            })}
+            </div>
+        </div>
+    );
+}
+
+const ProfileSettingsTab: React.FC<{ user: User, onUpdateUser: (data: Partial<User>) => Promise<void> }> = ({ user, onUpdateUser }) => {
+    const [formData, setFormData] = useState({
+        name: user.name,
+        preferences: user.preferences.join(', '),
+        emergencyContactName: user.emergencyContact.name,
+        emergencyContactPhone: user.emergencyContact.phone,
+    });
+    const [isSaving, setIsSaving] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setIsSaved(false);
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        const updatedUserData: Partial<User> = {
+            name: formData.name,
+            preferences: formData.preferences.split(',').map(p => p.trim()).filter(Boolean),
+            emergencyContact: {
+                name: formData.emergencyContactName,
+                phone: formData.emergencyContactPhone,
+            },
+        };
+        
+        try {
+            await onUpdateUser(updatedUserData);
+            setIsSaved(true);
+            setTimeout(() => setIsSaved(false), 3000);
+        } catch (error) {
+            console.error("Failed to save profile settings", error);
+            // Error toast is shown from the AuthContext
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <div>
+            <h3 className="text-xl font-bold mb-6">Profile Settings</h3>
+            <form onSubmit={handleSubmit} className="space-y-6 max-w-lg mx-auto">
+                <Input label="Full Name" name="name" value={formData.name} onChange={handleChange} required />
+                <Input label="Travel Preferences (comma-separated)" name="preferences" value={formData.preferences} onChange={handleChange} placeholder="e.g. History, Food, Nature" />
+                <fieldset className="border p-4 rounded-lg">
+                    <legend className="font-semibold px-2">Emergency Contact</legend>
+                    <div className="space-y-4">
+                       <Input label="Contact Name" name="emergencyContactName" value={formData.emergencyContactName} onChange={handleChange} required />
+                       <Input label="Contact Phone" name="emergencyContactPhone" type="tel" value={formData.emergencyContactPhone} onChange={handleChange} required />
+                    </div>
+                </fieldset>
+                <div className="flex justify-end items-center gap-4">
+                    {isSaved && <p className="text-green-600 text-sm animate-fade-in">Changes saved!</p>}
+                    <Button type="submit" loading={isSaving}>Save Changes</Button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
 
 interface ProfilePageProps {
   user: User;
-  guide: Guide | null;
-  guides: Guide[];
-  bookings: Booking[];
-  vendorBookings: VendorBooking[];
-  vendors: Vendor[];
-  reviews: Review[];
-  allUsers: User[];
-  wishlist: PlaceSuggestion[];
+  guideId: string | null; 
   onBookGuide: (guide: Guide) => void;
   onNavigate: (page: Page) => void;
   onToggleWishlist: (place: PlaceSuggestion) => void;
   onViewPlace: (place: PlaceSuggestion) => void;
   onOpenItineraryBuilder: (places: PlaceSuggestion[]) => void;
-  onUpdateUser: (user: User) => void;
   onUpgrade: () => void;
   onUnlockGuide: (guide: Guide) => Promise<void>;
-  onStartChat: (guideId: string) => void;
+  onStartChat: (guideId: string, conversations: Conversation[]) => void;
   onOpenReviewModal: (booking: Booking) => void;
-  onRedeemReward: (reward: Reward) => void;
-  onApplyToBeGuide: (applicationData: Omit<Guide, 'id' | 'name' | 'avatarUrl' | 'verificationStatus' | 'rating' | 'reviewCount'>) => void;
+  onApplyToBeGuide: (applicationData: any) => Promise<void>;
+  addToast: (message: string, type: ToastMessage['type']) => void;
 }
 
-const mockRewards: Reward[] = [
-    {
-        id: 'reward-1',
-        title: '10% Off Next Guide Booking',
-        description: 'Get a discount on your next adventure with any verified guide.',
-        pointsRequired: 5000,
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" /></svg>
-    },
-    {
-        id: 'reward-2',
-        title: 'Free Entry to a Heritage Site',
-        description: 'Redeem for a free entry ticket to a selected Maharashtra heritage fort or monument.',
-        pointsRequired: 2500,
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-    },
-    {
-        id: 'reward-3',
-        title: 'Complimentary Local Thali',
-        description: 'Enjoy a delicious, authentic Maharashtrian thali at a partner restaurant.',
-        pointsRequired: 1500,
-        icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 15.546c-.523 0-1.046.151-1.5.454a2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0 2.704 2.704 0 01-3 0 2.704 2.704 0 00-3 0c-.454-.303-.977-.454-1.5-.454V8.454c.523 0 1.046-.151 1.5-.454a2.704 2.704 0 013 0 2.704 2.704 0 003 0 2.704 2.704 0 013 0 2.704 2.704 0 003 0c.454.303.977.454 1.5.454v7.092zM15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-    }
-];
+const ProfilePage: React.FC<ProfilePageProps> = (props) => {
+  const { user, guideId, addToast } = props;
+  const { updateUser: onUpdateUser, redeemReward: onRedeemReward } = useAuth();
 
-const WishlistCard: React.FC<{ place: PlaceSuggestion; onView: () => void; onRemove: () => void; onSelect: (checked: boolean) => void; isSelected: boolean; }> = ({ place, onView, onRemove, onSelect, isSelected }) => (
-    <div className="bg-light dark:bg-dark p-4 rounded-lg shadow-md flex items-start gap-4">
-        <input type="checkbox" checked={isSelected} onChange={(e) => onSelect(e.target.checked)} className="mt-1 h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary" />
-        <div className="flex-grow">
-            <Badge color="blue">{place.type}</Badge>
-            <h4 className="text-xl font-bold mt-2">{place.name}</h4>
-            <p className="text-gray-600 dark:text-gray-400">{place.destination}</p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-            <Button onClick={onView} variant="outline" className="py-2 px-4 text-sm w-full">View</Button>
-            <Button onClick={onRemove} variant="ghost" className="text-red-500 py-2 px-4 text-sm w-full">Remove</Button>
-        </div>
-    </div>
-);
-
-const AchievementCard: React.FC<{ achievement: Achievement }> = ({ achievement }) => (
-    <div className={`p-4 rounded-lg flex items-center gap-4 border-2 ${achievement.isUnlocked ? 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800' : 'bg-gray-100 border-gray-200 dark:bg-dark dark:border-gray-700 opacity-60'}`}>
-        <div className={`p-3 rounded-full ${achievement.isUnlocked ? 'bg-green-200 text-green-700 dark:bg-green-800 dark:text-green-100' : 'bg-gray-200 text-gray-500 dark:bg-gray-600 dark:text-gray-400'}`}>
-            {achievement.icon}
-        </div>
-        <div>
-            <h4 className="font-bold text-lg text-dark dark:text-light">{achievement.title}</h4>
-            <p className="text-gray-600 dark:text-gray-400">{achievement.description}</p>
-        </div>
-    </div>
-);
-
-const RewardCard: React.FC<{ 
-    reward: Reward; 
-    userPoints: number;
-    isRedeemed: boolean;
-    onRedeem: (reward: Reward) => void;
-}> = ({ reward, userPoints, isRedeemed, onRedeem }) => {
-    const canAfford = userPoints >= reward.pointsRequired;
-    const canRedeem = canAfford && !isRedeemed;
-
-    return (
-        <div className={`p-5 rounded-lg flex items-center gap-5 border-2 ${canAfford ? 'bg-light dark:bg-dark' : 'bg-gray-100 dark:bg-dark-light opacity-70'}`}>
-            <div className={`p-4 rounded-full ${canAfford ? 'bg-secondary/20 text-secondary' : 'bg-gray-200 text-gray-500 dark:bg-gray-600'}`}>
-                {reward.icon}
-            </div>
-            <div className="flex-grow">
-                <h4 className="font-bold text-lg text-dark dark:text-light">{reward.title}</h4>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">{reward.description}</p>
-                <p className="font-bold text-primary mt-1">{reward.pointsRequired.toLocaleString()} PTS</p>
-            </div>
-            <Button 
-                onClick={() => onRedeem(reward)} 
-                disabled={!canRedeem} 
-                className="py-2 px-4 text-sm w-28"
-            >
-                {isRedeemed ? 'Redeemed' : 'Redeem'}
-            </Button>
-        </div>
-    );
-};
-
-const BookingCard: React.FC<{ booking: Booking; guides: Guide[]; onOpenReviewModal: (booking: Booking) => void; }> = ({ booking, guides, onOpenReviewModal }) => {
-    const guide = guides.find(g => g.id === booking.guideId);
-    if (!guide) return null;
-
-    return (
-        <div className="bg-light dark:bg-dark p-4 rounded-lg shadow-md flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <img src={guide.avatarUrl} alt={guide.name} className="w-full sm:w-24 h-32 sm:h-24 rounded-md object-cover"/>
-            <div className="flex-grow">
-                <h4 className="text-xl font-bold">{guide.name}</h4>
-                <p className="text-gray-600 dark:text-gray-400">{guide.location}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
-                </p>
-            </div>
-            <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
-                 <p className="font-semibold text-lg mb-2">₹{booking.totalPrice.toLocaleString('en-IN')}</p>
-                 {booking.status === BookingStatus.Completed ? (
-                    <div className="text-right">
-                        <Button variant="secondary" className="py-2 px-4 text-sm" onClick={() => onOpenReviewModal(booking)} disabled={booking.hasBeenReviewed}>
-                            {booking.hasBeenReviewed ? 'Reviewed' : 'Rate Guide'}
-                        </Button>
-                        <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-semibold">+ {booking.pointsEarned} PTS</p>
-                    </div>
-                 ) : (
-                    <Button variant="outline" className="py-2 px-4 text-sm">View Details</Button>
-                 )}
-            </div>
-        </div>
-    )
-}
-
-const VendorBookingCard: React.FC<{ booking: VendorBooking; vendors: Vendor[]; }> = ({ booking, vendors }) => {
-    const vendor = vendors.find(v => v.id === booking.vendorId);
-    if (!vendor) return null;
-
-    return (
-        <div className="bg-light dark:bg-dark p-4 rounded-lg shadow-md flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <img src={vendor.avatarUrl} alt={vendor.name} className="w-full sm:w-24 h-32 sm:h-24 rounded-md object-cover"/>
-            <div className="flex-grow">
-                <Badge color="yellow" >{vendor.type}</Badge>
-                <h4 className="text-xl font-bold mt-1">{vendor.name}</h4>
-                <p className="text-gray-600 dark:text-gray-400">{vendor.location}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {new Date(booking.date).toLocaleDateString()} at {booking.time} for {booking.guests} {booking.guests > 1 ? 'people' : 'person'}.
-                </p>
-            </div>
-            <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
-                 <Badge color={booking.status === BookingStatus.Upcoming ? 'green' : 'gray'}>{booking.status}</Badge>
-                 <Button variant="outline" className="py-2 px-4 text-sm mt-2">View Details</Button>
-            </div>
-        </div>
-    )
-}
-
-const Dashboard: React.FC<Omit<ProfilePageProps, 'guide' | 'reviews' | 'allUsers' | 'onBookGuide' | 'onUnlockGuide' | 'onStartChat'>> = (props) => {
-  const { user, bookings, guides, vendorBookings, vendors, wishlist, onNavigate, onToggleWishlist, onViewPlace, onOpenItineraryBuilder, onUpdateUser, onUpgrade, onOpenReviewModal, onRedeemReward, onApplyToBeGuide } = props;
-  const [activeTab, setActiveTab] = useState('upcoming');
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [editedUser, setEditedUser] = useState(user);
-  const [selectedPlaces, setSelectedPlaces] = useState<PlaceSuggestion[]>([]);
-  const [isApplyingForGuide, setIsApplyingForGuide] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-
-  const upcomingBookings = bookings.filter(b => b.status === BookingStatus.Upcoming);
-  const pastBookings = bookings.filter(b => b.status === BookingStatus.Completed);
-  const upcomingReservations = vendorBookings.filter(b => b.status === BookingStatus.Upcoming);
-
-  const achievements: Achievement[] = useMemo(() => [
-        {
-            id: 'explorer',
-            title: 'Maharashtra Explorer',
-            description: 'Begin your journey by creating an account.',
-            icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 16.382V5.618a1 1 0 00-1.447-.894L15 7m-6 10V7m0 0L5 5m4 2l6-3m-6 3l6 10" /></svg>,
-            isUnlocked: true,
-        },
-        {
-            id: 'first_trip',
-            title: 'First Trip',
-            description: 'Complete your first trip with a guide.',
-            icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>,
-            isUnlocked: pastBookings.length >= 1,
-        },
-        {
-            id: 'seasoned_traveler',
-            title: 'Seasoned Traveler',
-            description: 'Complete three trips with local guides.',
-            icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>,
-            isUnlocked: pastBookings.length >= 3,
-        }
-    ], [pastBookings.length]);
-
-  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setEditedUser(prev => ({...prev, [name]: value }));
-  }
+  const [activeTab, setActiveTab] = useState('bookings');
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
   
-  const handleEmergencyContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setEditedUser(prev => ({...prev, emergencyContact: { ...prev.emergencyContact, [name]: value }}));
-  }
+  // States for guide profile view
+  const [guide, setGuide] = useState<Guide | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [isLoadingGuide, setIsLoadingGuide] = useState(true);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEditedUser(prev => ({ ...prev, avatarUrl: reader.result as string }));
-        if (!isEditingProfile) {
-          setIsEditingProfile(true);
-        }
-      };
-      reader.readAsDataURL(file);
+
+  useEffect(() => {
+    if (!guideId || !db) {
+        setIsLoadingGuide(false);
+        return;
     }
+    setIsLoadingGuide(true);
+    const unsubscribes: (() => void)[] = [];
+
+    unsubscribes.push(db.collection('guides').doc(guideId).onSnapshot(doc => {
+        if(doc.exists) setGuide({ id: doc.id, ...doc.data() } as Guide);
+        else setGuide(null);
+    }));
+
+    unsubscribes.push(db.collection('reviews').where('guideId', '==', guideId).onSnapshot(snap => {
+        setReviews(snap.docs.map(d => ({id: d.id, ...d.data()}) as Review));
+    }));
+
+    // Fetch all users for review author lookups
+    unsubscribes.push(db.collection('users').onSnapshot(snap => {
+        setAllUsers(snap.docs.map(d => ({id: d.id, ...d.data()}) as User));
+        setIsLoadingGuide(false);
+    }));
+
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, [guideId]);
+
+  const handleApplyClick = async (applicationData: any) => {
+      setIsApplying(true);
+      try {
+          await props.onApplyToBeGuide(applicationData);
+          setShowApplyModal(false);
+      } finally {
+          setIsApplying(false);
+      }
   };
 
-  const handleSaveChanges = () => {
-    onUpdateUser(editedUser);
-    setIsEditingProfile(false);
-  }
-  
-  const handleSelectPlace = (place: PlaceSuggestion, isSelected: boolean) => {
-    if (isSelected) {
-        setSelectedPlaces(prev => [...prev, place]);
-    } else {
-        setSelectedPlaces(prev => prev.filter(p => !(p.name === place.name && p.destination === place.destination)));
+  // If a guide is selected, we show their profile instead of the user's dashboard.
+  if (guideId) {
+    if (isLoadingGuide) {
+        return <div className="flex justify-center items-center h-96"><Spinner className="w-12 h-12" /></div>;
     }
-  };
+    if (!guide) {
+        return <div>Guide not found.</div>;
+    }
 
-  const TabButton: React.FC<{tab: string; children: React.ReactNode}> = ({tab, children}) => (
-    <button 
-        onClick={() => setActiveTab(tab)}
-        className={`px-4 md:px-6 py-3 font-semibold rounded-t-lg transition-colors border-b-2 text-sm md:text-base ${activeTab === tab ? 'text-primary border-primary' : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-sky-400'}`}
-    >
-        {children}
-    </button>
-  );
-
-  return (
-    <div className="animate-fade-in space-y-8">
-        <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleAvatarChange}
-            accept="image/png, image/jpeg"
-            className="hidden"
-            aria-hidden="true"
-        />
-        <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
-            <div className="relative group flex-shrink-0">
-                <img src={editedUser.avatarUrl} alt={editedUser.name} className="w-28 h-28 rounded-full border-4 border-primary object-cover" />
-                <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center rounded-full transition-opacity duration-300 cursor-pointer"
-                    aria-label="Change profile picture"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </button>
-            </div>
-            <div className="text-center sm:text-left">
-                <div className="flex items-center gap-3 justify-center sm:justify-start">
-                  <h1 className="text-4xl font-bold">{editedUser.name}</h1>
-                  {user.isPro && <Badge color="yellow">PRO</Badge>}
-                </div>
-                <p className="text-lg text-gray-500 dark:text-gray-400">{editedUser.email}</p>
-                 <div className="mt-2 flex items-center gap-4 justify-center sm:justify-start">
-                    <div className="flex items-center font-semibold text-secondary">
-                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1V3a1 1 0 112 0v1h2a1 1 0 110 2h-2v1a1 1 0 11-2 0V6H6a1 1 0 01-1-1V3a1 1 0 011-1zm10 4a1 1 0 011 1v6a1 1 0 11-2 0V7a1 1 0 011-1zM5 10a1 1 0 011 1v6a1 1 0 11-2 0v-6a1 1 0 011-1z" clipRule="evenodd" /></svg>
-                       {user.points.toLocaleString()} PTS
-                    </div>
-                    {!user.isPro && <Button onClick={onUpgrade} variant="secondary" className="py-1 px-3 text-sm">Upgrade to PRO</Button>}
-                </div>
-            </div>
-        </div>
-        
-        {user.role === 'user' && !guides.some(g => g.id === user.id) && (
-            user.hasPendingApplication ? (
-                <section className="bg-yellow-50 dark:bg-yellow-900/30 p-6 rounded-2xl shadow-md text-center border-l-4 border-yellow-400">
-                    <h3 className="text-2xl font-bold text-yellow-800 dark:text-yellow-200">Application Submitted!</h3>
-                    <p className="text-yellow-700 dark:text-yellow-300 mt-2">Your application to become a guide is under review. We'll notify you once it's processed.</p>
-                </section>
-            ) : (
-                <section className="bg-light dark:bg-dark p-6 rounded-2xl shadow-md text-center">
-                    <h3 className="text-2xl font-bold">Want to be a local expert?</h3>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2 mb-4">Share your knowledge of Maharashtra and earn by becoming a verified guide.</p>
-                    <Button onClick={() => setIsApplyingForGuide(true)}>Become a Guide</Button>
-                </section>
-            )
-        )}
-
-        <div className="border-b border-gray-200 dark:border-gray-700">
-             <div className="flex flex-wrap space-x-0 md:space-x-4">
-                <TabButton tab="upcoming">Upcoming Trips ({upcomingBookings.length})</TabButton>
-                <TabButton tab="reservations">Reservations ({upcomingReservations.length})</TabButton>
-                <TabButton tab="past">Past Bookings ({pastBookings.length})</TabButton>
-                <TabButton tab="wishlist">My Wishlist ({wishlist.length})</TabButton>
-                <TabButton tab="achievements">Achievements</TabButton>
-                <TabButton tab="rewards">Rewards</TabButton>
-                <TabButton tab="profile">My Profile</TabButton>
-             </div>
-        </div>
-
-        <div className="bg-white dark:bg-dark-light p-6 md:p-8 rounded-b-2xl shadow-lg mt-[-1px]">
-            {activeTab === 'upcoming' && (
-                <div className="space-y-4 animate-fade-in">
-                    {upcomingBookings.length > 0 ? (
-                        upcomingBookings.map(b => <BookingCard key={b.id} booking={b} guides={guides} onOpenReviewModal={onOpenReviewModal} />)
-                    ) : (
-                        <div className="text-center py-8">
-                            <h3 className="text-xl font-semibold">No upcoming trips</h3>
-                            <p className="text-gray-500 dark:text-gray-400 mt-2">Time to plan your next adventure!</p>
-                            <Button onClick={() => onNavigate(Page.Search)} className="mt-4">Find a Guide</Button>
-                        </div>
-                    )}
-                </div>
-            )}
-            {activeTab === 'reservations' && (
-                <div className="space-y-4 animate-fade-in">
-                    {upcomingReservations.length > 0 ? (
-                        upcomingReservations.map(b => <VendorBookingCard key={b.id} booking={b} vendors={vendors} />)
-                    ) : (
-                        <div className="text-center py-8">
-                            <h3 className="text-xl font-semibold">No upcoming reservations</h3>
-                            <p className="text-gray-500 dark:text-gray-400 mt-2">Explore local eateries and book a table!</p>
-                            <Button onClick={() => onNavigate(Page.Vendors)} className="mt-4">Find Vendors</Button>
-                        </div>
-                    )}
-                </div>
-            )}
-            {activeTab === 'past' && (
-                <div className="space-y-4 animate-fade-in">
-                   {pastBookings.length > 0 ? (
-                        pastBookings.map(b => <BookingCard key={b.id} booking={b} guides={guides} onOpenReviewModal={onOpenReviewModal} />)
-                    ) : (
-                         <p className="text-center text-gray-500 dark:text-gray-400 py-8">Your past adventures will appear here.</p>
-                    )}
-                </div>
-            )}
-            {activeTab === 'wishlist' && (
-                <div className="animate-fade-in">
-                    {wishlist.length > 0 ? (
-                        <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {wishlist.map(place => (
-                                    <WishlistCard 
-                                        key={place.name + place.destination} 
-                                        place={place} 
-                                        onView={() => onViewPlace(place)} 
-                                        onRemove={() => onToggleWishlist(place)}
-                                        isSelected={selectedPlaces.some(p => p.name === place.name && p.destination === place.destination)}
-                                        onSelect={(isChecked) => handleSelectPlace(place, isChecked)}
-                                    />
-                                ))}
-                            </div>
-                            {selectedPlaces.length > 0 && (
-                                <div className="mt-6 text-center p-4 bg-primary/10 rounded-lg">
-                                    <Button onClick={() => onOpenItineraryBuilder(selectedPlaces)}>
-                                        Plan a Trip with {selectedPlaces.length} Selected Places
-                                    </Button>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                         <div className="text-center py-8">
-                            <h3 className="text-xl font-semibold">Your wishlist is empty</h3>
-                            <p className="text-gray-500 dark:text-gray-400 mt-2">Explore places and save your favorites!</p>
-                            <Button onClick={() => onNavigate(Page.Explore)} className="mt-4">Explore Places</Button>
-                        </div>
-                    )}
-                </div>
-            )}
-             {activeTab === 'achievements' && (
-                 <div className="animate-fade-in grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {achievements.map(ach => <AchievementCard key={ach.id} achievement={ach}/>)}
-                 </div>
-            )}
-            {activeTab === 'rewards' && (
-                 <div className="animate-fade-in space-y-4">
-                    {mockRewards.map(reward => {
-                        const isRedeemed = user.redeemedRewardIds.includes(reward.id);
-                        return (
-                            <RewardCard 
-                                key={reward.id} 
-                                reward={reward} 
-                                userPoints={user.points}
-                                isRedeemed={isRedeemed}
-                                onRedeem={onRedeemReward}
-                            />
-                        );
-                    })}
-                 </div>
-            )}
-            {activeTab === 'profile' && (
-                 <div className="animate-fade-in">
-                    <div className="space-y-6">
-                        <Input label="Full Name" name="name" value={editedUser.name} onChange={handleProfileChange} disabled={!isEditingProfile} />
-                        <Input label="Email Address" name="email" type="email" value={editedUser.email} onChange={handleProfileChange} disabled={!isEditingProfile} />
-                        <div>
-                            <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-1">Emergency Contact</h3>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg bg-light dark:bg-dark border dark:border-gray-700">
-                                <Input label="Contact Name" name="name" value={editedUser.emergencyContact.name} onChange={handleEmergencyContactChange} disabled={!isEditingProfile} />
-                                <Input label="Contact Phone" name="phone" type="tel" value={editedUser.emergencyContact.phone} onChange={handleEmergencyContactChange} disabled={!isEditingProfile} />
-                             </div>
-                        </div>
-                    </div>
-                    <div className="mt-8 text-center flex justify-center gap-4">
-                        {isEditingProfile ? (
-                            <>
-                                <Button variant='outline' onClick={() => { setIsEditingProfile(false); setEditedUser(user); }}>Cancel</Button>
-                                <Button onClick={handleSaveChanges}>Save Changes</Button>
-                            </>
-                        ) : (
-                            <Button variant='outline' onClick={() => setIsEditingProfile(true)}>Edit Profile</Button>
-                        )}
-                    </div>
-                 </div>
-            )}
-        </div>
-        {isApplyingForGuide && (
-            <GuideApplicationModal 
-                onClose={() => setIsApplyingForGuide(false)}
-                onApply={(data) => {
-                    onApplyToBeGuide(data);
-                    setIsApplyingForGuide(false);
-                }}
-            />
-        )}
-    </div>
-  );
-};
-
-
-const ReviewCard: React.FC<{ review: Review; allUsers: User[] }> = ({ review, allUsers }) => {
-    const reviewer = allUsers.find(u => u.id === review.userId) || { name: 'Anonymous', avatarUrl: 'https://picsum.photos/seed/anon/200/200'};
-
-    return (
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-start gap-4">
-                <img src={reviewer.avatarUrl} alt={reviewer.name} className="w-12 h-12 rounded-full object-cover" />
-                <div>
-                    <div className="flex items-center gap-4">
-                        <h4 className="font-bold">{reviewer.name}</h4>
-                        <span className="text-xs text-gray-500">{new Date(review.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <StarRating rating={review.rating} />
-                    <p className="mt-2 text-gray-700 dark:text-gray-300">{review.comment}</p>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const GuideProfile: React.FC<{ guide: Guide; reviews: Review[]; allUsers: User[]; onBook: () => void; onUnlock: (guide: Guide) => Promise<void>; isUnlocked: boolean; onStartChat: (guideId: string) => void; }> = ({ guide, reviews, allUsers, onBook, onUnlock, isUnlocked, onStartChat }) => {
-    const [isUnlocking, setIsUnlocking] = useState(false);
-    const [activeTab, setActiveTab] = useState('about');
+    const isUnlocked = props.user.unlockedGuideIds.includes(guide.id);
     
-    const guideReviews = useMemo(() => reviews.filter(r => r.guideId === guide.id), [reviews, guide.id]);
-    const averageRating = useMemo(() => {
-        if (guideReviews.length === 0) return guide.rating;
-        const total = guideReviews.reduce((sum, review) => sum + review.rating, 0);
-        return parseFloat((total / guideReviews.length).toFixed(1));
-    }, [guideReviews, guide.rating]);
-
-
     const handleUnlockClick = async () => {
         setIsUnlocking(true);
         try {
-            await onUnlock(guide);
-        } catch (error) {
-            console.error("Unlock failed in component", error);
+            await props.onUnlockGuide(guide);
+        } catch (e) {
+            // Error is handled by the toast in App.tsx
         } finally {
             setIsUnlocking(false);
         }
-    };
+    }
 
     return (
-      <div className="bg-white dark:bg-dark-light rounded-2xl shadow-lg overflow-hidden animate-fade-in">
-        <div className="md:flex">
-          <div className="md:flex-shrink-0">
-            <img className="h-full w-full object-cover md:w-64" src={guide.avatarUrl} alt={guide.name} />
-          </div>
-          <div className="p-8 flex-1">
-            <div className="flex justify-between items-start">
-                <div>
-                    <h1 className="text-4xl font-bold text-dark dark:text-light">{guide.name}</h1>
-                    <p className="text-lg text-gray-500 dark:text-gray-400 mb-2">{guide.location}</p>
-                </div>
-                {guide.verificationStatus === 'verified' && <Badge color="green">Verified Guide</Badge>}
-            </div>
-            <div className="flex items-center mb-4">
-              <StarRating rating={averageRating} />
-              <span className="text-gray-600 dark:text-gray-400 ml-2">{averageRating} ({guideReviews.length} reviews)</span>
-            </div>
-            
-            <div className="mt-6 flex items-center justify-between bg-light dark:bg-dark p-4 rounded-lg">
-                <p className="text-2xl font-bold text-primary">₹{guide.pricePerDay.toLocaleString('en-IN')}<span className="text-base font-normal text-gray-600 dark:text-gray-400">/day</span></p>
-                <Button onClick={onBook}>Book a Tour</Button>
-            </div>
-          </div>
-        </div>
-        
-        <div className="border-b border-t border-gray-200 dark:border-gray-700">
-            <div className="flex px-4">
-                <button onClick={() => setActiveTab('about')} className={`px-6 py-3 font-semibold border-b-2 ${activeTab === 'about' ? 'text-primary border-primary' : 'text-gray-500 border-transparent hover:text-primary'}`}>About</button>
-                <button onClick={() => setActiveTab('gallery')} className={`px-6 py-3 font-semibold border-b-2 ${activeTab === 'gallery' ? 'text-primary border-primary' : 'text-gray-500 border-transparent hover:text-primary'}`}>Gallery</button>
-                <button onClick={() => setActiveTab('reviews')} className={`px-6 py-3 font-semibold border-b-2 ${activeTab === 'reviews' ? 'text-primary border-primary' : 'text-gray-500 border-transparent hover:text-primary'}`}>Reviews ({guideReviews.length})</button>
-            </div>
-        </div>
-        
-        <div className="p-8">
-            {activeTab === 'about' && (
-                <div className="animate-fade-in">
-                    <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-6">{guide.bio}</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div>
-                            <h3 className="font-semibold text-lg mb-2">Specialties</h3>
-                            <div className="flex flex-wrap gap-2">{guide.specialties.map(s => <Badge key={s}>{s}</Badge>)}</div>
+        <div className="max-w-4xl mx-auto animate-fade-in space-y-8">
+            <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg">
+                <div className="flex flex-col md:flex-row gap-8">
+                    <img src={guide.avatarUrl} alt={guide.name} className="w-32 h-32 rounded-full border-4 border-primary object-cover mx-auto md:mx-0"/>
+                    <div className="flex-grow">
+                        <h1 className="text-3xl font-bold font-heading">{guide.name}</h1>
+                        <p className="text-lg text-gray-500">{guide.location}</p>
+                        <div className="flex items-center gap-4 mt-2">
+                           <StarRating rating={guide.rating} />
+                           <span>{guide.rating}/5 ({guide.reviewCount} reviews)</span>
                         </div>
-                        <div>
-                            <h3 className="font-semibold text-lg mb-2">Languages</h3>
-                            <div className="flex flex-wrap gap-2">{guide.languages.map(l => <Badge key={l} color='blue'>{l}</Badge>)}</div>
+                         <div className="mt-4 flex flex-wrap gap-2">
+                             <Button onClick={() => props.onBookGuide(guide)}>Book Tour</Button>
+                             {isUnlocked ? (
+                                <Button variant="outline" onClick={() => props.onStartChat(guide.id, [])}>Message Guide</Button>
+                             ) : (
+                                <Button variant="secondary" onClick={handleUnlockClick} loading={isUnlocking}>
+                                    {`Unlock Contact for ₹${guide.contactUnlockPrice}`}
+                                </Button>
+                             )}
+                         </div>
+                    </div>
+                </div>
+                 <div className="mt-8 border-t pt-6">
+                    <h2 className="text-2xl font-bold font-heading mb-4">About Me</h2>
+                    <p>{guide.bio}</p>
+                </div>
+                {isUnlocked && (
+                     <div className="mt-8 border-t pt-6">
+                        <h2 className="text-2xl font-bold font-heading mb-4">Contact Information</h2>
+                        <div className="p-4 bg-primary/10 rounded-lg flex flex-col sm:flex-row gap-4 sm:gap-8">
+                            <p><strong>Email:</strong> {guide.contactInfo.email}</p>
+                            <p><strong>Phone:</strong> {guide.contactInfo.phone}</p>
                         </div>
                     </div>
-                     {isUnlocked ? (
-                        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700">
-                            <h3 className="font-semibold text-lg text-green-800 dark:text-green-200 mb-2">Contact Information</h3>
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-green-700 dark:text-green-300"><strong>Phone:</strong> {guide.contactInfo.phone}</p>
-                                        <p className="text-green-700 dark:text-green-300"><strong>Email:</strong> {guide.contactInfo.email}</p>
-                                    </div>
-                                    <Button variant="outline" onClick={() => onStartChat(guide.id)}>Chat with {guide.name.split(' ')[0]}</Button>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="p-4 rounded-lg bg-light dark:bg-dark border dark:border-gray-200 dark:border-gray-700 text-center">
-                            <h3 className="font-semibold text-lg">Unlock Contact Info</h3>
-                            <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">Get direct access to this guide to plan your trip.</p>
-                            <Button onClick={handleUnlockClick} disabled={isUnlocking}>
-                                {isUnlocking ? (
-                                    <span className="flex items-center justify-center">
-                                        <Spinner /> <span className="ml-2">Processing...</span>
-                                    </span>
-                                ) : (
-                                    `Unlock for ₹${guide.contactUnlockPrice}`
-                                )}
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            )}
-            {activeTab === 'gallery' && (
-                 <div className="animate-fade-in grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {guide.gallery.map((img, i) => <img key={i} src={img} alt={`${guide.name} gallery ${i+1}`} className="rounded-lg object-cover h-48 w-full"/>)}
-                </div>
-            )}
-             {activeTab === 'reviews' && (
-                 <div className="animate-fade-in">
-                    {guideReviews.length > 0 ? (
-                        guideReviews.map(review => <ReviewCard key={review.id} review={review} allUsers={allUsers} />)
-                    ) : (
-                        <p className="text-center text-gray-500 py-8">This guide has no reviews yet.</p>
-                    )}
-                 </div>
-            )}
-        </div>
-      </div>
-    );
-};
+                )}
+            </div>
 
-const ProfilePage: React.FC<ProfilePageProps> = (props) => {
-  const { user, guide, onBookGuide, onUnlockGuide, onStartChat, reviews, allUsers } = props;
-  
-  if (guide) {
-    const isUnlocked = user.unlockedGuideIds.includes(guide.id);
-    return <GuideProfile guide={guide} reviews={reviews} allUsers={allUsers} onBook={() => onBookGuide(guide)} onUnlock={onUnlockGuide} isUnlocked={isUnlocked} onStartChat={onStartChat} />;
+            <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg">
+                <GuideAvailabilityViewer availability={guide.availability} />
+            </div>
+
+             <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg">
+                <h2 className="text-2xl font-bold font-heading mb-4">Reviews</h2>
+                <div className="space-y-4">
+                    {reviews.length > 0 ? reviews.map(review => {
+                        const reviewUser = allUsers.find(u => u.id === review.userId);
+                        return (
+                             <div key={review.id} className="border-b pb-4">
+                                <div className="flex items-center gap-3">
+                                    <img src={reviewUser?.avatarUrl} alt={reviewUser?.name} className="w-10 h-10 rounded-full" />
+                                    <div>
+                                        <p className="font-semibold">{reviewUser?.name}</p>
+                                        <StarRating rating={review.rating} />
+                                    </div>
+                                </div>
+                                <p className="mt-2 text-gray-600 dark:text-gray-300">{review.comment}</p>
+                            </div>
+                        )
+                    }) : <p className="text-gray-500">No reviews yet for this guide.</p>}
+                </div>
+            </div>
+        </div>
+    );
   }
   
-  return <Dashboard {...props} />;
+  // User Dashboard View
+  
+  const TabButton: React.FC<{tab: string, children: React.ReactNode}> = ({tab, children}) => (
+      <button onClick={() => setActiveTab(tab)} className={`px-4 py-2 font-semibold rounded-t-lg transition-all duration-200 transform hover:-translate-y-px ${activeTab === tab ? 'bg-white dark:bg-dark-light border-b-2 border-primary text-primary' : 'text-gray-500 hover:bg-gray-200/50 dark:hover:bg-dark/50'}`}>
+          {children}
+      </button>
+  );
+
+  return (
+    <div className="animate-fade-in">
+        <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg mb-8 text-center">
+            <img src={user.avatarUrl} alt={user.name} className="w-24 h-24 rounded-full mx-auto border-4 border-primary mb-4" />
+            <h1 className="text-3xl font-bold font-heading">{user.name}</h1>
+            <p className="text-gray-500">{user.email}</p>
+            {!user.isPro && <Button variant="secondary" className="mt-4" onClick={props.onUpgrade}>Upgrade to Pro</Button>}
+        </div>
+      
+        <div className="border-b border-gray-200 dark:border-gray-700">
+            <TabButton tab="bookings">Bookings</TabButton>
+            <TabButton tab="wishlist">Wishlist</TabButton>
+            <TabButton tab="rewards">Rewards</TabButton>
+            <TabButton tab="settings">Settings</TabButton>
+        </div>
+        
+        <div className="mt-8 bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg min-h-[300px]">
+            {activeTab === 'bookings' && <BookingsTab user={user} onOpenReviewModal={props.onOpenReviewModal} />}
+            {activeTab === 'wishlist' && <WishlistTab 
+                wishlist={user.wishlist || []} 
+                onViewPlace={props.onViewPlace}
+                onGenerateFromWishlist={() => props.onOpenItineraryBuilder(user.wishlist || [])}
+                onNavigateToExplore={() => props.onNavigate(Page.Explore)}
+             />}
+            {activeTab === 'rewards' && <RewardsTab user={user} onRedeemReward={onRedeemReward} addToast={addToast} />}
+            {activeTab === 'settings' && <ProfileSettingsTab user={user} onUpdateUser={onUpdateUser} />}
+        </div>
+
+        {user.role === 'user' && !user.hasPendingApplication && (
+             <div className="mt-12 p-6 bg-primary/10 rounded-lg text-center">
+                <h2 className="text-2xl font-bold font-heading">Want to become a guide?</h2>
+                <p className="mt-2 mb-4 text-gray-600 dark:text-gray-300">Share your local expertise and earn money by guiding travelers.</p>
+                <Button onClick={() => setShowApplyModal(true)} loading={isApplying}>Apply Now</Button>
+            </div>
+        )}
+        {showApplyModal && <GuideApplicationModal onClose={() => setShowApplyModal(false)} onApply={handleApplyClick} />}
+    </div>
+  );
 };
 
 export default ProfilePage;

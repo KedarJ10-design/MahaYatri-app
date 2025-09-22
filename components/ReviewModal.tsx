@@ -6,7 +6,7 @@ interface ReviewModalProps {
   booking: Booking;
   guides: Guide[];
   onClose: () => void;
-  onSubmit: (review: Omit<Review, 'id' | 'userId' | 'createdAt'>) => void;
+  onSubmit: (review: Omit<Review, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
 }
 
 const StarInput: React.FC<{ rating: number; setRating: (rating: number) => void }> = ({ rating, setRating }) => {
@@ -40,16 +40,23 @@ const StarInput: React.FC<{ rating: number; setRating: (rating: number) => void 
 const ReviewModal: React.FC<ReviewModalProps> = ({ booking, guides, onClose, onSubmit }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const guide = guides.find(g => g.id === booking.guideId);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (rating === 0) return;
-    onSubmit({
-      guideId: booking.guideId,
-      rating,
-      comment,
-    });
+    if (rating === 0 || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+        await onSubmit({
+          guideId: booking.guideId,
+          rating,
+          comment,
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   if (!guide) return null;
@@ -90,8 +97,8 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ booking, guides, onClose, onS
                 </div>
             </div>
             <div className="p-6 bg-gray-50 dark:bg-dark rounded-b-2xl flex justify-end items-center gap-4">
-                <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                <Button type="submit" disabled={rating === 0}>Submit Review</Button>
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+                <Button type="submit" disabled={rating === 0 || isSubmitting} loading={isSubmitting}>Submit Review</Button>
             </div>
         </form>
 

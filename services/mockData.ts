@@ -1,4 +1,13 @@
-import { User, Guide, Booking, BookingStatus, Conversation, DirectMessage, Review, Vendor, Stay } from '../types';
+import { User, Guide, Booking, BookingStatus, Conversation, DirectMessage, Review, Vendor, Stay, Notification } from '../types';
+
+const today = new Date();
+const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+const getFutureDate = (days: number) => {
+    const future = new Date(today);
+    future.setDate(today.getDate() + days);
+    return formatDate(future);
+};
 
 export const mockTouristUser: User = {
   id: 'user-1',
@@ -17,6 +26,7 @@ export const mockTouristUser: User = {
   redeemedRewardIds: ['reward-3'],
   status: 'active',
   hasPendingApplication: false,
+  wishlist: [],
 };
 
 export const mockGuideUser: User = {
@@ -33,6 +43,7 @@ export const mockGuideUser: User = {
     redeemedRewardIds: [],
     status: 'active',
     hasPendingApplication: false,
+    wishlist: [],
 };
 
 export const mockAdminUser: User = {
@@ -49,6 +60,7 @@ export const mockAdminUser: User = {
   redeemedRewardIds: [],
   status: 'active',
   hasPendingApplication: false,
+  wishlist: [],
 };
 
 export const mockGuides: Guide[] = [
@@ -70,6 +82,12 @@ export const mockGuides: Guide[] = [
       email: 'rohan.patil@guides.mahayatri.com'
     },
     contactUnlockPrice: 250,
+    availability: {
+      [getFutureDate(5)]: false,
+      [getFutureDate(6)]: false,
+      [getFutureDate(10)]: true,
+      [getFutureDate(11)]: false,
+    },
   },
   {
     id: 'guide-2',
@@ -89,6 +107,11 @@ export const mockGuides: Guide[] = [
       email: 'aisha.khan@guides.mahayatri.com'
     },
     contactUnlockPrice: 200,
+    availability: {
+      [getFutureDate(2)]: false,
+      [getFutureDate(3)]: false,
+      [getFutureDate(4)]: false,
+    },
   },
   {
     id: 'guide-3',
@@ -108,6 +131,7 @@ export const mockGuides: Guide[] = [
       email: 'vikram.singh@guides.mahayatri.com'
     },
     contactUnlockPrice: 300,
+    availability: {},
   },
   {
     id: 'guide-4',
@@ -127,6 +151,7 @@ export const mockGuides: Guide[] = [
       email: 'sunita.gawde@guides.mahayatri.com'
     },
     contactUnlockPrice: 150,
+    availability: {},
   },
 ];
 
@@ -143,6 +168,7 @@ export const mockVendors: Vendor[] = [
         avatarUrl: 'https://picsum.photos/seed/mumbai-kebab/300/300',
         gallery: ['https://picsum.photos/seed/kebab-stall/600/400', 'https://picsum.photos/seed/mughlai-food/600/400'],
         verificationStatus: 'verified',
+        availability: { [getFutureDate(3)]: false }, // Closed in 3 days
     },
     {
         id: 'vendor-2',
@@ -156,6 +182,7 @@ export const mockVendors: Vendor[] = [
         avatarUrl: 'https://picsum.photos/seed/pune-restaurant/300/300',
         gallery: ['https://picsum.photos/seed/pune-dosa/600/400', 'https://picsum.photos/seed/pune-thali/600/400'],
         verificationStatus: 'verified',
+        availability: {},
     },
     {
         id: 'vendor-3',
@@ -169,6 +196,7 @@ export const mockVendors: Vendor[] = [
         avatarUrl: 'https://picsum.photos/seed/pune-cafe/300/300',
         gallery: ['https://picsum.photos/seed/pune-pastry/600/400', 'https://picsum.photos/seed/coffee-shop/600/400'],
         verificationStatus: 'verified',
+        availability: {},
     },
     {
         id: 'vendor-4',
@@ -182,6 +210,7 @@ export const mockVendors: Vendor[] = [
         avatarUrl: 'https://picsum.photos/seed/nashik-pavbhaji/300/300',
         gallery: ['https://picsum.photos/seed/pav-bhaji/600/400', 'https://picsum.photos/seed/street-food-vendor/600/400'],
         verificationStatus: 'pending',
+        availability: {},
     }
 ];
 
@@ -198,6 +227,7 @@ export const mockStays: Stay[] = [
         avatarUrl: 'https://picsum.photos/seed/mumbai-taj-hotel/300/300',
         gallery: ['https://picsum.photos/seed/taj-hotel-exterior/600/400', 'https://picsum.photos/seed/taj-hotel-room/600/400'],
         verificationStatus: 'verified',
+        availability: { [getFutureDate(8)]: false, [getFutureDate(9)]: false },
     },
     {
         id: 'stay-2',
@@ -211,6 +241,7 @@ export const mockStays: Stay[] = [
         avatarUrl: 'https://picsum.photos/seed/pune-homestay/300/300',
         gallery: ['https://picsum.photos/seed/homestay-garden/600/400', 'https://picsum.photos/seed/homestay-room/600/400'],
         verificationStatus: 'verified',
+        availability: {},
     },
     {
         id: 'stay-3',
@@ -224,6 +255,7 @@ export const mockStays: Stay[] = [
         avatarUrl: 'https://picsum.photos/seed/nashik-resort/300/300',
         gallery: ['https://picsum.photos/seed/vineyard-resort/600/400', 'https://picsum.photos/seed/resort-pool/600/400'],
         verificationStatus: 'verified',
+        availability: { [getFutureDate(1)]: false },
     },
     {
         id: 'stay-4',
@@ -237,6 +269,7 @@ export const mockStays: Stay[] = [
         avatarUrl: 'https://picsum.photos/seed/aurangabad-farmstay/300/300',
         gallery: ['https://picsum.photos/seed/farm-stay-exterior/600/400', 'https://picsum.photos/seed/farm-stay-room/600/400'],
         verificationStatus: 'pending',
+        availability: {},
     },
 ];
 
@@ -246,11 +279,11 @@ export const mockBookings: Booking[] = [
         id: 'booking-1',
         userId: 'user-1',
         guideId: 'guide-2',
-        startDate: '2024-08-15',
-        endDate: '2024-08-17',
+        startDate: getFutureDate(15),
+        endDate: getFutureDate(17),
         guests: 2,
         totalPrice: 24000,
-        status: BookingStatus.Upcoming,
+        status: BookingStatus.Confirmed,
         pointsEarned: 2400,
     },
     {
@@ -281,11 +314,11 @@ export const mockBookings: Booking[] = [
         id: 'booking-4', // Booking for the guide to see
         userId: 'user-2',
         guideId: 'guide-1',
-        startDate: '2024-09-01',
-        endDate: '2024-09-03',
+        startDate: getFutureDate(20),
+        endDate: getFutureDate(22),
         guests: 3,
         totalPrice: 40500,
-        status: BookingStatus.Upcoming,
+        status: BookingStatus.Pending,
         pointsEarned: 4050,
     },
     {
@@ -358,8 +391,32 @@ export const mockReviews: Review[] = [
 
 // We need some more users for the reviews and admin panel to make sense
 export const otherUsers: User[] = [
-    {...mockTouristUser, id: 'user-2', name: 'Rahul Verma', avatarUrl: 'https://picsum.photos/seed/tourist-man-1/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false },
-    {...mockTouristUser, id: 'user-3', name: 'Sneha Reddy', avatarUrl: 'https://picsum.photos/seed/tourist-woman-2/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false },
-    {...mockTouristUser, id: 'user-4', name: 'Arjun Mehta', avatarUrl: 'https://picsum.photos/seed/tourist-man-2/200/200', role: 'user', status: 'suspended', redeemedRewardIds: [], hasPendingApplication: false },
-    {...mockTouristUser, id: 'user-5', name: 'Divya Rao', avatarUrl: 'https://picsum.photos/seed/tourist-woman-3/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false }
+    {...mockTouristUser, id: 'user-2', name: 'Rahul Verma', avatarUrl: 'https://picsum.photos/seed/tourist-man-1/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false, unlockedGuideIds: [], wishlist: [] },
+    {...mockTouristUser, id: 'user-3', name: 'Sneha Reddy', avatarUrl: 'https://picsum.photos/seed/tourist-woman-2/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false, unlockedGuideIds: [], wishlist: [] },
+    {...mockTouristUser, id: 'user-4', name: 'Arjun Mehta', avatarUrl: 'https://picsum.photos/seed/tourist-man-2/200/200', role: 'user', status: 'suspended', redeemedRewardIds: [], hasPendingApplication: false, unlockedGuideIds: [], wishlist: [] },
+    {...mockTouristUser, id: 'user-5', name: 'Divya Rao', avatarUrl: 'https://picsum.photos/seed/tourist-woman-3/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: true, unlockedGuideIds: [], wishlist: [] } // This user has a pending application
+];
+
+export const mockNotifications: Notification[] = [
+    {
+        id: 'notif-1',
+        message: 'Your upcoming booking with Aisha Khan is tomorrow!',
+        read: false,
+        type: 'booking',
+        timestamp: Date.now() - 1000 * 60 * 60, // 1 hour ago
+    },
+    {
+        id: 'notif-2',
+        message: 'You have a new message from Rohan Patil.',
+        read: false,
+        type: 'message',
+        timestamp: Date.now() - 1000 * 60 * 180, // 3 hours ago
+    },
+     {
+        id: 'notif-3',
+        message: 'Welcome to MahaYatri Pro! You now have access to the AI Cost Estimator.',
+        read: true,
+        type: 'system',
+        timestamp: Date.now() - 1000 * 60 * 60 * 24, // 1 day ago
+    }
 ];

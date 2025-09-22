@@ -1,215 +1,212 @@
-import React, { useMemo, useState } from 'react';
-import { User, Guide, Booking, BookingStatus, Vendor, Stay } from '../types';
-import Button from './common/Button';
-import Badge from './Badge';
-import StarRating from './StarRating';
+import React, { useState, useMemo, useEffect } from 'react';
+import { User, Guide, Booking, BookingStatus, ToastMessage } from '../types';
 import EarningsChart from './EarningsChart';
 import AvailabilityCalendar from './AvailabilityCalendar';
-
+import Badge from './Badge';
+import Button from './common/Button';
+import Spinner from './common/Spinner';
+import { db } from '../services/firebase';
 
 interface GuideDashboardPageProps {
   guideUser: User;
-  guides: Guide[];
-  bookings: Booking[];
   allUsers: User[];
-  vendors: Vendor[];
-  stays: Stay[];
+  onUpdateAvailability: (guideId: string, newAvailability: Record<string, boolean>) => Promise<void>;
+  onUpdateBookingStatus: (bookingId: string, status: BookingStatus) => Promise<void>;
+  addToast: (message: string, type: ToastMessage['type']) => void;
 }
 
-const StatCard: React.FC<{ title: string; value: string; icon: React.ReactNode }> = ({ title, value, icon }) => (
-    <div className="bg-light dark:bg-dark p-6 rounded-xl shadow-md flex items-center gap-4">
-        <div className="bg-primary/10 text-primary p-3 rounded-full">
-            {icon}
-        </div>
-        <div>
-            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">{title}</p>
-            <p className="text-2xl font-bold font-heading text-dark dark:text-light">{value}</p>
-        </div>
-    </div>
-);
-
-const BookingRow: React.FC<{ booking: Booking; tourist: User | undefined }> = ({ booking, tourist }) => {
-    if (!tourist) return null;
-
-    return (
-        <div className="bg-light dark:bg-dark p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center gap-4 border-l-4 border-primary transition-colors hover:bg-light-dark dark:hover:bg-dark-light">
-            <img src={tourist.avatarUrl} alt={tourist.name} className="w-12 h-12 rounded-full object-cover" />
-            <div className="flex-grow">
-                <p className="font-bold">{tourist.name}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}
-                </p>
-            </div>
-            <div className="text-left sm:text-right">
-                <p className="font-semibold text-lg">₹{booking.totalPrice.toLocaleString('en-IN')}</p>
-                <p className="text-xs text-gray-500">{booking.guests} {booking.guests > 1 ? 'guests' : 'guest'}</p>
-            </div>
-            <Button variant="outline" className="py-2 px-3 text-sm self-start sm:self-center">View Details</Button>
-        </div>
-    );
+const getStatusBadgeColor = (status: BookingStatus) => {
+    switch (status) {
+        case BookingStatus.Pending: return 'yellow';
+        case BookingStatus.Confirmed: return 'blue';
+        case BookingStatus.Completed: return 'green';
+        case BookingStatus.Cancelled: return 'red';
+        default: return 'gray';
+    }
 };
 
-const RecommendationCard: React.FC<{ item: Vendor | Stay }> = ({ item }) => (
-    <div className="flex items-center gap-4 bg-light dark:bg-dark p-3 rounded-lg">
-        <img src={item.avatarUrl} alt={item.name} className="w-12 h-12 rounded-md object-cover" />
-        <div className="flex-grow">
-            <p className="font-semibold">{item.name}</p>
-            <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                <StarRating rating={item.rating} />
-                <span className="ml-2">({item.reviewCount})</span>
-            </div>
-        </div>
-    </div>
-);
 
-
-const GuideDashboardPage: React.FC<GuideDashboardPageProps> = ({ guideUser, guides, bookings, allUsers, vendors, stays }) => {
-    const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
-    const guideProfile = useMemo(() => guides.find(g => g.id === guideUser.id), [guides, guideUser.id]);
-    
-    const upcomingBookings = useMemo(() => 
-        bookings.filter(b => b.guideId === guideUser.id && b.status === BookingStatus.Upcoming)
-        .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()),
-        [bookings, guideUser.id]
-    );
-
-     const pastBookings = useMemo(() => 
-        bookings.filter(b => b.guideId === guideUser.id && b.status === BookingStatus.Completed)
-        .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()),
-        [bookings, guideUser.id]
-    );
-
-    const totalEarnings = useMemo(() => 
-        pastBookings.reduce((sum, b) => sum + b.totalPrice, 0),
-        [pastBookings]
-    );
-    
-    const localVendors = useMemo(() => 
-        vendors.filter(v => v.location === guideProfile?.location && v.verificationStatus === 'verified'),
-        [vendors, guideProfile]
-    );
-
-    const localStays = useMemo(() =>
-        stays.filter(s => s.location === guideProfile?.location && s.verificationStatus === 'verified'),
-        [stays, guideProfile]
-    );
-
-    if (!guideProfile) {
-        return <div className="text-center py-10">Error: Guide profile not found.</div>;
+const GuideDashboardPage: React.FC<GuideDashboardPageProps> = ({ guideUser, allUsers, onUpdateAvailability, onUpdateBookingStatus, addToast }) => {
+  const [guideProfile, setGuideProfile] = useState<Guide | null>(null);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [bookingActionLoading, setBookingActionLoading] = useState<Record<string, boolean>>({});
+  
+  useEffect(() => {
+    if (!db || !guideUser.id) {
+        setIsLoading(false);
+        return;
     }
+    setIsLoading(true);
 
-    const TabButton: React.FC<{tab: 'upcoming' | 'past'; children: React.ReactNode}> = ({tab, children}) => (
-        <button 
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 font-semibold rounded-md transition-colors text-sm ${activeTab === tab ? 'bg-primary text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark'}`}
-        >
-            {children}
-        </button>
-      );
+    const unsubscribes: (() => void)[] = [];
+    
+    // Listener for the guide profile is the primary source for loading state.
+    const guideRef = db.collection('guides').doc(guideUser.id);
+    unsubscribes.push(guideRef.onSnapshot(doc => {
+        setGuideProfile(doc.exists ? { id: doc.id, ...doc.data() } as Guide : null);
+        setIsLoading(false); // Stop loading once profile is fetched, so we can check its status.
+    }, () => {
+        setIsLoading(false);
+        addToast("Could not load your guide profile.", "error");
+    }));
 
+    // Listener for bookings can load in the background.
+    const bookingsQuery = db.collection('bookings').where('guideId', '==', guideUser.id);
+    unsubscribes.push(bookingsQuery.onSnapshot(snapshot => {
+        setBookings(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking)));
+    }));
+
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, [guideUser.id, addToast]);
+  
+  const { totalEarnings, chartData, upcomingBookings, pastBookings } = useMemo(() => {
+    if (!guideProfile) {
+      return { totalEarnings: 0, chartData: [], upcomingBookings: [], pastBookings: [] };
+    }
+    
+    const myBookings = [...bookings].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+    
+    const now = new Date();
+    const upcoming = myBookings.filter(b => new Date(b.endDate) >= now && b.status !== BookingStatus.Completed && b.status !== BookingStatus.Cancelled);
+    const past = myBookings.filter(b => new Date(b.endDate) < now || b.status === BookingStatus.Completed || b.status === BookingStatus.Cancelled);
+
+    const completed = myBookings.filter(b => b.status === BookingStatus.Completed);
+    
+    const total = completed.reduce((sum, b) => sum + b.totalPrice, 0);
+
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    const recentCompletedBookings = completed.filter(b => new Date(b.endDate) >= sixMonthsAgo);
+
+    const monthlyData = Array.from({ length: 6 }, (_, i) => {
+        const date = new Date();
+        date.setDate(1);
+        date.setMonth(date.getMonth() - i);
+        return {
+            month: date.toLocaleString('default', { month: 'short' }),
+            year: date.getFullYear(),
+            earnings: 0,
+        };
+    }).reverse();
+
+    recentCompletedBookings.forEach(booking => {
+        const bookingDate = new Date(booking.endDate);
+        const bookingMonth = bookingDate.toLocaleString('default', { month: 'short' });
+        const bookingYear = bookingDate.getFullYear();
+        const monthForBooking = monthlyData.find(m => m.month === bookingMonth && m.year === bookingYear);
+        if (monthForBooking) {
+            monthForBooking.earnings += booking.totalPrice;
+        }
+    });
+
+    return {
+      totalEarnings: total,
+      chartData: monthlyData.map(({ month, earnings }) => ({ month, earnings })),
+      upcomingBookings: upcoming,
+      pastBookings: past,
+    };
+  }, [guideProfile, bookings]);
+
+  const handleBookingAction = async (bookingId: string, status: BookingStatus) => {
+      setBookingActionLoading(prev => ({ ...prev, [bookingId]: true }));
+      try {
+          await onUpdateBookingStatus(bookingId, status);
+      } finally {
+          setBookingActionLoading(prev => ({ ...prev, [bookingId]: false }));
+      }
+  };
+
+  const BookingRow: React.FC<{booking: Booking, isUpcoming: boolean}> = ({ booking, isUpcoming }) => {
+    const tourist = allUsers.find(u => u.id === booking.userId);
     return (
-        <div className="max-w-6xl mx-auto animate-fade-in space-y-8">
+        <div key={booking.id} className="p-4 bg-light dark:bg-dark rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 className="text-4xl font-extrabold font-heading text-dark dark:text-light">Welcome back, {guideUser.name.split(' ')[0]}!</h1>
-                <p className="text-lg text-gray-500 dark:text-gray-400">Here's what's happening with your guide business today.</p>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <section className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
-                        <h2 className="text-2xl font-bold font-heading mb-1">Earnings Overview</h2>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Your earnings for the last 6 months.</p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="md:col-span-1 bg-light dark:bg-dark p-4 rounded-lg flex flex-col justify-center">
-                                <p className="text-sm text-gray-500">Total Earnings (Past Bookings)</p>
-                                <p className="text-4xl font-extrabold text-primary">₹{totalEarnings.toLocaleString('en-IN')}</p>
-                            </div>
-                            <div className="md:col-span-2">
-                                <EarningsChart />
-                            </div>
-                        </div>
-                    </section>
-
-                    <section className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-2xl font-bold font-heading">My Bookings</h2>
-                            <div className="flex items-center gap-2 p-1 bg-light dark:bg-dark rounded-lg">
-                                <TabButton tab="upcoming">Upcoming ({upcomingBookings.length})</TabButton>
-                                <TabButton tab="past">Past ({pastBookings.length})</TabButton>
-                            </div>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            {activeTab === 'upcoming' && (
-                                upcomingBookings.length > 0 ? (
-                                    upcomingBookings.map(booking => (
-                                        <BookingRow 
-                                            key={booking.id} 
-                                            booking={booking} 
-                                            tourist={allUsers.find(u => u.id === booking.userId)} 
-                                        />
-                                    ))
-                                ) : (
-                                    <p className="text-center text-gray-500 dark:text-gray-400 py-8">You have no upcoming bookings.</p>
-                                )
-                            )}
-                             {activeTab === 'past' && (
-                                pastBookings.length > 0 ? (
-                                    pastBookings.map(booking => (
-                                        <BookingRow 
-                                            key={booking.id} 
-                                            booking={booking} 
-                                            tourist={allUsers.find(u => u.id === booking.userId)} 
-                                        />
-                                    ))
-                                ) : (
-                                    <p className="text-center text-gray-500 dark:text-gray-400 py-8">No completed bookings yet.</p>
-                                )
-                            )}
-                        </div>
-                    </section>
+                <p className="font-bold">Tour with {tourist?.name || 'a user'}</p>
+                <p className="text-sm text-gray-500">{new Date(booking.startDate).toDateString()} for {booking.guests} guests</p>
+                 <div className="mt-2 flex items-center gap-4">
+                    <p className="font-semibold text-dark dark:text-light">₹{booking.totalPrice.toLocaleString()}</p>
+                    <Badge color={getStatusBadgeColor(booking.status)}>{booking.status}</Badge>
                 </div>
-
-                <aside className="lg:col-span-1 space-y-8">
-                    <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg text-center">
-                        <img src={guideProfile.avatarUrl} alt={guideProfile.name} className="w-32 h-32 rounded-full mx-auto border-4 border-primary object-cover" />
-                        <h2 className="text-2xl font-bold font-heading mt-4">{guideProfile.name}</h2>
-                        <p className="text-gray-500 dark:text-gray-400">{guideProfile.location}</p>
-                        {guideProfile.verificationStatus === 'verified' ? (
-                            <Badge color="green">Verified</Badge>
-                        ) : (
-                             <Badge color={guideProfile.verificationStatus === 'pending' ? 'yellow' : 'red'}>
-                                {guideProfile.verificationStatus.charAt(0).toUpperCase() + guideProfile.verificationStatus.slice(1)}
-                             </Badge>
-                        )}
-                        <div className="flex items-center justify-center mt-2">
-                            <StarRating rating={guideProfile.rating} />
-                            <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">({guideProfile.reviewCount} reviews)</span>
-                        </div>
-                        <Button variant="outline" className="w-full mt-6">Edit My Profile</Button>
-                    </div>
-                    <AvailabilityCalendar />
-                     <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
-                        <h3 className="text-xl font-bold font-heading mb-4">Local Recommendations</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <h4 className="font-semibold text-primary mb-2 font-heading">Top Eateries</h4>
-                                <div className="space-y-2">
-                                    {localVendors.length > 0 ? localVendors.slice(0,2).map(v => <RecommendationCard key={v.id} item={v}/>) : <p className="text-xs text-gray-500">No verified vendors in your area yet.</p>}
-                                </div>
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-primary mb-2 font-heading">Recommended Stays</h4>
-                                <div className="space-y-2">
-                                     {localStays.length > 0 ? localStays.slice(0,2).map(s => <RecommendationCard key={s.id} item={s}/>) : <p className="text-xs text-gray-500">No verified stays in your area yet.</p>}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </aside>
             </div>
+            {isUpcoming && booking.status === BookingStatus.Pending && (
+                <div className="flex gap-2 self-end sm:self-center">
+                    <Button size="sm" variant="outline" className="border-red-500 text-red-500 hover:bg-red-50" onClick={() => handleBookingAction(booking.id, BookingStatus.Cancelled)} loading={bookingActionLoading[booking.id]}>Cancel</Button>
+                    <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleBookingAction(booking.id, BookingStatus.Confirmed)} loading={bookingActionLoading[booking.id]}>Confirm</Button>
+                </div>
+            )}
+        </div>
+    )
+  }
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-64"><Spinner className="w-12 h-12" /></div>;
+  }
+  
+  // After loading, check the profile status.
+  // If the profile doesn't exist yet OR if its status is pending, show the message.
+  if (!guideProfile || guideProfile.verificationStatus === 'pending') {
+    return (
+        <div className="text-center p-8 bg-yellow-100 dark:bg-yellow-900/50 rounded-lg animate-fade-in">
+            <h2 className="text-2xl font-bold font-heading">Application Pending</h2>
+            <p className="mt-2 text-yellow-800 dark:text-yellow-200">Your guide application is currently under review by our team. You will be notified once it's approved.</p>
         </div>
     );
+  }
+
+  return (
+    <div className="space-y-8 animate-fade-in">
+      <h1 className="text-3xl font-bold font-heading">Welcome back, {guideUser.name}!</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg text-center">
+              <h3 className="text-lg font-semibold text-gray-500">Total Earnings (Completed)</h3>
+              <p className="text-4xl font-bold text-primary mt-2">₹{totalEarnings.toLocaleString()}</p>
+          </div>
+          <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg text-center">
+              <h3 className="text-lg font-semibold text-gray-500">Upcoming Bookings</h3>
+              <p className="text-4xl font-bold text-primary mt-2">{upcomingBookings.length}</p>
+          </div>
+          <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg text-center">
+              <h3 className="text-lg font-semibold text-gray-500">Overall Rating</h3>
+              <p className="text-4xl font-bold text-primary mt-2">{guideProfile.rating}/5</p>
+          </div>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
+            <h3 className="text-xl font-bold mb-4">6-Month Earnings Overview</h3>
+            <div className="h-64">
+                <EarningsChart data={chartData} />
+            </div>
+        </div>
+        <div>
+            <AvailabilityCalendar guide={guideProfile} onUpdateAvailability={onUpdateAvailability}/>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
+        <h3 className="text-xl font-bold mb-4">My Bookings</h3>
+        
+        <h4 className="text-lg font-semibold mt-6 mb-3 text-gray-700 dark:text-gray-300">Upcoming & Active Tours</h4>
+        <div className="space-y-4">
+            {upcomingBookings.length > 0 ? (
+                upcomingBookings.map(booking => <BookingRow key={booking.id} booking={booking} isUpcoming={true} />)
+            ) : <p className="text-gray-500">You have no upcoming tours.</p>}
+        </div>
+
+        <h4 className="text-lg font-semibold mt-8 mb-3 text-gray-700 dark:text-gray-300">Past Tours</h4>
+        <div className="space-y-4">
+            {pastBookings.length > 0 ? (
+                pastBookings.map(booking => <BookingRow key={booking.id} booking={booking} isUpcoming={false} />)
+            ) : <p className="text-gray-500">You have no past tours.</p>}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default GuideDashboardPage;

@@ -1,3 +1,6 @@
+// FIX: Removed unnecessary import of `Page` from `./App` which was causing a circular dependency.
+// The `Page` enum is defined in this file and exported, so it should not be imported.
+
 export enum Page {
   Home = 'HOME',
   Search = 'SEARCH',
@@ -44,6 +47,7 @@ export interface User {
   redeemedRewardIds: string[];
   status?: 'active' | 'suspended';
   hasPendingApplication?: boolean;
+  wishlist?: PlaceSuggestion[];
 }
 
 export interface Guide extends Verifiable {
@@ -58,6 +62,7 @@ export interface Guide extends Verifiable {
     email: string;
   };
   contactUnlockPrice: number;
+  availability?: Record<string, boolean>; // YYYY-MM-DD -> true/false
 }
 
 export interface Vendor extends Verifiable {
@@ -66,6 +71,7 @@ export interface Vendor extends Verifiable {
   rating: number;
   reviewCount: number;
   priceRange: '$' | '$$' | '$$$';
+  availability?: Record<string, boolean>; // YYYY-MM-DD -> true/false
 }
 
 export interface Stay extends Verifiable {
@@ -74,6 +80,7 @@ export interface Stay extends Verifiable {
     reviewCount: number;
     pricePerNight: number;
     amenities: string[];
+    availability?: Record<string, boolean>; // YYYY-MM-DD -> true/false
 }
 
 export interface ItineraryDay {
@@ -89,7 +96,8 @@ export interface Itinerary {
 }
 
 export enum BookingStatus {
-  Upcoming = 'UPCOMING',
+  Pending = 'PENDING',
+  Confirmed = 'CONFIRMED',
   Completed = 'COMPLETED',
   Cancelled = 'CANCELLED',
 }
@@ -255,4 +263,19 @@ export interface DetailedItinerary {
     summary: string;
     days: ItineraryDayDetailed[];
     total_estimated_cost: number;
+}
+
+// New types for UI enhancements
+export interface ToastMessage {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
+export interface Notification {
+  id: string;
+  message: string;
+  read: boolean;
+  type: 'booking' | 'message' | 'system';
+  timestamp: number;
 }

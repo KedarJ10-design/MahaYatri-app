@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
-import { Guide } from '../types';
-import Button from './common/Button';
+import Button from './Button';
 
-interface AvailabilityCalendarProps {
-  guide: Guide;
-  onUpdateAvailability: (guideId: string, newAvailability: Record<string, boolean>) => Promise<void>;
+interface GuideAvailabilityViewerProps {
+  availability?: Record<string, boolean>;
 }
 
 const formatDate = (date: Date): string => date.toISOString().split('T')[0];
 
-const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ guide, onUpdateAvailability }) => {
+const GuideAvailabilityViewer: React.FC<GuideAvailabilityViewerProps> = ({ availability = {} }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [isUpdating, setIsUpdating] = useState(false);
 
   const changeMonth = (amount: number) => {
     setCurrentDate(prev => {
@@ -19,25 +16,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ guide, onUp
       newDate.setMonth(newDate.getMonth() + amount);
       return newDate;
     });
-  };
-
-  const handleDayClick = async (day: Date) => {
-    if (isUpdating) return;
-    setIsUpdating(true);
-    const dateString = formatDate(day);
-    const currentAvailability = guide.availability || {};
-    // If undefined, it's available. Toggling makes it unavailable (false).
-    // If false, toggling makes it available (true).
-    // If true, toggling makes it unavailable (false).
-    const newStatus = currentAvailability[dateString] === false ? true : false;
-    
-    const newAvailability = { ...currentAvailability, [dateString]: newStatus };
-
-    try {
-        await onUpdateAvailability(guide.id, newAvailability);
-    } finally {
-        setIsUpdating(false);
-    }
   };
 
   const renderCalendar = () => {
@@ -49,7 +27,6 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ guide, onUp
     const startDayOfWeek = firstDay.getDay();
 
     const calendarDays = [];
-    // Add empty cells for days before the 1st
     for (let i = 0; i < startDayOfWeek; i++) {
       calendarDays.push(<div key={`empty-${i}`} className="p-2"></div>);
     }
@@ -60,32 +37,22 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ guide, onUp
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       const dateString = formatDate(date);
-      const isAvailable = guide.availability?.[dateString] !== false; // Undefined means available
+      const isAvailable = availability[dateString] !== false;
       const isPast = date < today;
 
-      let dayClasses = `w-10 h-10 flex items-center justify-center rounded-full transition-colors font-semibold `;
+      let dayClasses = `w-10 h-10 flex items-center justify-center rounded-full font-semibold `;
       if (isPast) {
-          dayClasses += 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-dark-lighter cursor-not-allowed';
+          dayClasses += 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-dark-lighter';
       } else {
          dayClasses += isAvailable 
-            ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 hover:bg-red-100 dark:hover:bg-red-900/50 cursor-pointer' 
-            : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 hover:bg-green-100 dark:hover:bg-green-900/50 cursor-pointer';
+            ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300' 
+            : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 line-through';
       }
       if (date.getTime() === today.getTime()) {
         dayClasses += ' ring-2 ring-primary';
       }
 
-      calendarDays.push(
-        <button
-          key={day}
-          disabled={isPast || isUpdating}
-          onClick={() => handleDayClick(date)}
-          className={dayClasses}
-          aria-label={`Set availability for ${date.toLocaleDateString()}`}
-        >
-          {day}
-        </button>
-      );
+      calendarDays.push(<div key={day} className={dayClasses}>{day}</div>);
     }
     return calendarDays;
   };
@@ -93,14 +60,14 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ guide, onUp
   const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
   return (
-    <div className="bg-white dark:bg-dark-light p-4 rounded-2xl shadow-lg">
-      <h3 className="text-xl font-bold mb-2">My Availability</h3>
+    <div>
+      <h2 className="text-2xl font-bold font-heading mb-4">Availability</h2>
       <div className="flex justify-between items-center mb-4">
         <Button size="sm" variant="ghost" onClick={() => changeMonth(-1)}>&larr;</Button>
         <span className="font-semibold">{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
         <Button size="sm" variant="ghost" onClick={() => changeMonth(1)}>&rarr;</Button>
       </div>
-       <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-2">
+      <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-2">
            {weekDays.map(day => <div key={day}>{day}</div>)}
        </div>
       <div className="grid grid-cols-7 gap-1 place-items-center">
@@ -114,4 +81,4 @@ const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({ guide, onUp
   );
 };
 
-export default AvailabilityCalendar;
+export default GuideAvailabilityViewer;

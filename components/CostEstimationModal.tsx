@@ -32,8 +32,9 @@ const CostEstimationModal: React.FC<CostEstimationModalProps> = ({ itinerary, on
     fetchEstimate();
   }, [itinerary]);
 
-  const totalCost = estimate 
-    ? Object.values(estimate).reduce((sum, item) => sum + item.amount, 0)
+  // FIX: Refactored to use Object.keys for type-safe access on an index signature type.
+  const totalCost = estimate
+    ? Object.keys(estimate).reduce((sum, key) => sum + estimate[key].amount, 0)
     : 0;
 
   const renderContent = () => {
@@ -60,15 +61,20 @@ const CostEstimationModal: React.FC<CostEstimationModalProps> = ({ itinerary, on
     if (estimate) {
       return (
         <div className="space-y-4">
-          {Object.entries(estimate).map(([category, details]) => (
-            <div key={category} className="p-4 bg-light dark:bg-dark rounded-lg">
-              <div className="flex justify-between items-center">
-                <h4 className="text-lg font-semibold font-heading capitalize">{category.replace(/([A-Z])/g, ' $1')}</h4>
-                <p className="font-bold text-lg text-primary">₹{details.amount.toLocaleString('en-IN')}</p>
+          {/* FIX: Refactored to use Object.keys for type-safe iteration, resolving errors on 'details.amount' and 'details.description'. */}
+          {Object.keys(estimate).map((category) => {
+            const details = estimate[category];
+            return (
+              <div key={category} className="p-4 bg-light dark:bg-dark rounded-lg">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-lg font-semibold font-heading capitalize">{category.replace(/([A-Z])/g, ' $1')}</h4>
+                  {/* FIX: This now correctly calls toLocaleString on a number. */}
+                  <p className="font-bold text-lg text-primary">₹{details.amount.toLocaleString('en-IN')}</p>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{details.description}</p>
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{details.description}</p>
-            </div>
-          ))}
+            );
+          })}
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4 flex justify-between items-center">
               <h3 className="text-xl font-bold font-heading">Grand Total</h3>
               <p className="text-2xl font-extrabold text-primary">₹{totalCost.toLocaleString('en-IN')}</p>

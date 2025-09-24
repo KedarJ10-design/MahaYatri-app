@@ -1,11 +1,12 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Page, User, Guide, Booking, PlaceSuggestion, DetailedItinerary, Review, Vendor, Stay, Reward, StayBooking, VendorBooking, UserRole, ToastMessage, Notification, Conversation, DirectMessage, BookingStatus } from './types';
 import { mockGuides, mockTouristUser, mockBookings, mockReviews, mockVendors, mockStays, otherUsers, mockAdminUser, mockGuideUser, mockConversations, mockMessages, mockNotifications } from './services/mockData';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './hooks/useTheme';
 import { translateText } from './services/geminiService';
-import { db, firebaseInitializationError } from './services/firebase';
+import { db, functions, firebaseInitializationError } from './services/firebase';
 import firebase from 'firebase/compat/app';
 
 import Header from './components/Header';
@@ -210,14 +211,12 @@ const AppContent: React.FC = () => {
     setModal('vendorBooking');
   };
   
-  const handleConfirmBooking = async (bookingDetails: Omit<Booking, 'id' | 'userId'>) => {
+  const handleConfirmBooking = async (bookingDetails: Omit<Booking, 'id' | 'userId' | 'status' | 'pointsEarned' | 'hasBeenReviewed'>) => {
       if (!user) return;
-      const newBookingData: Omit<Booking, 'id'> = { ...bookingDetails, userId: user.id };
-      
-      if (db) {
+      if (functions) {
           try {
-              await db.collection('bookings').add(newBookingData);
-              // Points are now awarded upon completion, not booking.
+              const submitBookingRequest = functions.httpsCallable('submitBookingRequest');
+              await submitBookingRequest(bookingDetails);
               setModal(null);
               addToast('Tour request sent! The guide will confirm shortly.', 'success');
           } catch(e) { 
@@ -227,13 +226,12 @@ const AppContent: React.FC = () => {
       }
   };
 
-   const handleConfirmStayBooking = async (bookingDetails: Omit<StayBooking, 'id' | 'userId'>) => {
+   const handleConfirmStayBooking = async (bookingDetails: Omit<StayBooking, 'id' | 'userId' | 'status'>) => {
     if (!user) return;
-    const newBookingData: Omit<StayBooking, 'id'> = { ...bookingDetails, userId: user.id };
-
-    if(db) {
+    if(functions) {
         try {
-            await db.collection('stayBookings').add(newBookingData);
+            const submitStayBooking = functions.httpsCallable('submitStayBooking');
+            await submitStayBooking(bookingDetails);
             setModal(null);
             addToast('Stay successfully booked!', 'success');
         } catch(e) { 
@@ -243,13 +241,12 @@ const AppContent: React.FC = () => {
     }
   }
 
-  const handleConfirmVendorBooking = async (bookingDetails: Omit<VendorBooking, 'id' | 'userId'>) => {
+  const handleConfirmVendorBooking = async (bookingDetails: Omit<VendorBooking, 'id' | 'userId' | 'status'>) => {
     if (!user) return;
-    const newBookingData: Omit<VendorBooking, 'id'> = { ...bookingDetails, userId: user.id };
-    
-    if(db) {
+    if(functions) {
         try {
-            await db.collection('vendorBookings').add(newBookingData);
+            const submitVendorBooking = functions.httpsCallable('submitVendorBooking');
+            await submitVendorBooking(bookingDetails);
             setModal(null);
             addToast('Reservation confirmed!', 'success');
         } catch(e) { 
@@ -353,15 +350,10 @@ const AppContent: React.FC = () => {
 
   const handleSubmitReview = async (reviewData: Omit<Review, 'id' | 'userId' | 'createdAt'>) => {
     if (!user || !bookingToReview) return;
-    const newReviewData: Omit<Review, 'id'> = {
-      ...reviewData,
-      userId: user.id,
-      createdAt: new Date().toISOString(),
-    };
-    if(db) {
+    if(functions) {
         try {
-            await db.collection('reviews').add(newReviewData);
-            await db.collection('bookings').doc(bookingToReview.id).update({ hasBeenReviewed: true });
+            const submitReview = functions.httpsCallable('submitReview');
+            await submitReview({ ...reviewData, bookingId: bookingToReview.id });
             setModal(null);
             setBookingToReview(null);
             addToast('Thank you for your review!', 'success');
@@ -374,19 +366,11 @@ const AppContent: React.FC = () => {
   
   const handleApplyToBeGuide = async (applicationData: Omit<Guide, 'id' | 'name' | 'avatarUrl' | 'verificationStatus' | 'rating' | 'reviewCount'>) => {
       if (!user) return Promise.reject();
-      const newGuideApplication: Guide = {
-          id: user.id,
-          name: user.name,
-          avatarUrl: user.avatarUrl,
-          verificationStatus: 'pending',
-          rating: 0,
-          reviewCount: 0,
-          ...applicationData,
-      };
-      if(db) {
+      if(functions) {
           try {
-              await db.collection('guides').doc(user.id).set(newGuideApplication);
-              await updateAuthUser({ hasPendingApplication: true });
+              const applyToBeGuide = functions.httpsCallable('applyToBeGuide');
+              await applyToBeGuide(applicationData);
+              // The user's `hasPendingApplication` will be updated via snapshot listener
               addToast('Your application has been submitted!', 'success');
           } catch(e) { 
               console.error(e); 
@@ -398,9 +382,10 @@ const AppContent: React.FC = () => {
   };
   
   const handleDeleteItem = (itemId: string, itemType: 'user' | 'guide' | 'vendor' | 'stay') => {
-    if(db) {
+    if(functions) {
       try {
-        db.collection(`${itemType}s`).doc(itemId).delete();
+        const deleteItem = functions.httpsCallable('deleteItem');
+        deleteItem({ itemId, itemType });
         addToast(`${itemType.charAt(0).toUpperCase() + itemType.slice(1)} deleted.`, 'info');
       } catch(e) { 
           console.error(e); 
@@ -413,9 +398,10 @@ const AppContent: React.FC = () => {
     if (user?.id === userId) {
         addToast("You cannot change your own role.", 'error'); return;
     }
-    if(db) {
+    if(functions) {
       try {
-        await db.collection('users').doc(userId).update({ role: newRole });
+        const updateUserRole = functions.httpsCallable('updateUserRole');
+        await updateUserRole({ userId, newRole });
         addToast("User role updated successfully.", 'success');
       } catch(e) { 
           console.error(e); 
@@ -425,9 +411,10 @@ const AppContent: React.FC = () => {
   };
   
   const handleUpdateGuideAvailability = async (guideId: string, newAvailability: Record<string, boolean>) => {
-    if(db) {
+    if(functions) {
       try {
-        await db.collection('guides').doc(guideId).update({ availability: newAvailability });
+        const updateGuideAvailability = functions.httpsCallable('updateGuideAvailability');
+        await updateGuideAvailability({ guideId, newAvailability });
         addToast("Availability updated.", 'success');
       } catch(e) {
           console.error(e);
@@ -438,9 +425,10 @@ const AppContent: React.FC = () => {
   };
 
   const handleUpdateBookingStatus = async (bookingId: string, status: BookingStatus) => {
-      if (db) {
+      if (functions) {
           try {
-              await db.collection('bookings').doc(bookingId).update({ status });
+              const updateBookingStatus = functions.httpsCallable('updateBookingStatus');
+              await updateBookingStatus({ bookingId, status });
               addToast('Booking status updated!', 'success');
           } catch (e) {
               console.error(e);

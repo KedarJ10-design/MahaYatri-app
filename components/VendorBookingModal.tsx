@@ -6,7 +6,7 @@ import Input from './common/Input';
 interface VendorBookingModalProps {
   vendor: Vendor;
   onClose: () => void;
-  onBook: (bookingDetails: Omit<VendorBooking, 'id' | 'userId'>) => Promise<void>;
+  onBook: (bookingDetails: Omit<VendorBooking, 'id' | 'userId' | 'status'>) => Promise<void>;
   addToast: (message: string, type: ToastMessage['type']) => void;
 }
 
@@ -35,7 +35,6 @@ const VendorBookingModal: React.FC<VendorBookingModalProps> = ({ vendor, onClose
           time,
           guests,
           specialRequest,
-          status: BookingStatus.Confirmed, // Vendor bookings are auto-confirmed
         });
     } finally {
         setIsBooking(false);

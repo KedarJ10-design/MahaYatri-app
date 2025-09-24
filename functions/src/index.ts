@@ -3,6 +3,7 @@ import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 import Razorpay from "razorpay";
 import * as cors from "cors";
+import { Guide, UserRole, BookingStatus } from "./types";
 
 const corsHandler = cors({origin: true});
 
@@ -145,4 +146,235 @@ export const verifyRazorpayPayment = functions.https.onRequest((req, res) => {
       return res.status(500).json({error: "Internal Server Error"});
     }
   });
+});
+
+
+// ============================================================================
+// NEW CALLABLE FUNCTIONS
+// ============================================================================
+
+// Helper to check for authentication
+const ensureAuthenticated = (context: functions.https.CallableContext) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "The function must be called while authenticated."
+    );
+  }
+  return context.auth.uid;
+};
+
+// Helper to check for admin role
+const ensureAdmin = async (uid: string) => {
+    const userDoc = await db.collection("users").doc(uid).get();
+    if (!userDoc.exists || userDoc.data()?.role !== "admin") {
+        throw new functions.https.HttpsError(
+            "permission-denied",
+            "Must be an admin to perform this action."
+        );
+    }
+};
+
+export const submitBookingRequest = functions.https.onCall(async (data, context) => {
+  const userId = ensureAuthenticated(context);
+  const { guideId, startDate, endDate, guests, totalPrice } = data;
+
+  if (!guideId || !startDate || !endDate || !guests || !totalPrice) {
+      throw new functions.https.HttpsError("invalid-argument", "Missing required booking fields.");
+  }
+
+  const newBooking = {
+      userId,
+      guideId,
+      startDate,
+      endDate,
+      guests: Number(guests),
+      totalPrice: Number(totalPrice),
+      pointsEarned: Math.floor(Number(totalPrice) / 10),
+      status: "PENDING",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  const bookingRef = await db.collection("bookings").add(newBooking);
+  return { success: true, bookingId: bookingRef.id };
+});
+
+export const submitStayBooking = functions.https.onCall(async (data, context) => {
+    const userId = ensureAuthenticated(context);
+    const { stayId, checkInDate, checkOutDate, guests, rooms, totalPrice } = data;
+
+    if (!stayId || !checkInDate || !checkOutDate || !guests || !rooms || !totalPrice) {
+        throw new functions.https.HttpsError("invalid-argument", "Missing required stay booking fields.");
+    }
+    const newBooking = {
+        userId,
+        stayId,
+        checkInDate,
+        checkOutDate,
+        guests: Number(guests),
+        rooms: Number(rooms),
+        totalPrice: Number(totalPrice),
+        status: "CONFIRMED",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    const bookingRef = await db.collection("stayBookings").add(newBooking);
+    return { success: true, bookingId: bookingRef.id };
+});
+
+export const submitVendorBooking = functions.https.onCall(async (data, context) => {
+    const userId = ensureAuthenticated(context);
+    const { vendorId, date, time, guests, specialRequest } = data;
+
+    if (!vendorId || !date || !time || !guests) {
+        throw new functions.https.HttpsError("invalid-argument", "Missing required vendor booking fields.");
+    }
+
+    const newBooking = {
+        userId,
+        vendorId,
+        date,
+        time,
+        guests: Number(guests),
+        specialRequest: specialRequest || "",
+        status: "CONFIRMED",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    const bookingRef = await db.collection("vendorBookings").add(newBooking);
+    return { success: true, bookingId: bookingRef.id };
+});
+
+export const submitReview = functions.https.onCall(async (data, context) => {
+    const userId = ensureAuthenticated(context);
+    const { rating, comment, guideId, bookingId } = data;
+
+    if (!rating || !guideId || !bookingId) {
+        throw new functions.https.HttpsError("invalid-argument", "Rating, guideId, and bookingId are required.");
+    }
+    if (rating < 1 || rating > 5) {
+        throw new functions.https.HttpsError("invalid-argument", "Rating must be between 1 and 5.");
+    }
+
+    const newReview = {
+        userId,
+        guideId,
+        bookingId,
+        rating: Number(rating),
+        comment: comment || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    const batch = db.batch();
+    const reviewRef = db.collection("reviews").doc();
+    batch.set(reviewRef, newReview);
+    const bookingRef = db.collection("bookings").doc(bookingId);
+    batch.update(bookingRef, { hasBeenReviewed: true });
+
+    await batch.commit();
+    return { success: true, reviewId: reviewRef.id };
+});
+
+export const applyToBeGuide = functions.https.onCall(async (data, context) => {
+    const userId = ensureAuthenticated(context);
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (!userDoc.exists) {
+        throw new functions.https.HttpsError("not-found", "User profile not found.");
+    }
+    const { name, avatarUrl } = userDoc.data() as { name: string, avatarUrl: string };
+
+    const newGuideApplication: Guide = {
+        id: userId,
+        name,
+        avatarUrl,
+        location: data.location,
+        languages: data.languages,
+        specialties: data.specialties,
+        bio: data.bio,
+        pricePerDay: Number(data.pricePerDay),
+        gallery: data.gallery,
+        contactInfo: data.contactInfo,
+        contactUnlockPrice: Number(data.contactUnlockPrice),
+        verificationStatus: "pending",
+        rating: 0,
+        reviewCount: 0,
+    };
+
+    const batch = db.batch();
+    const guideRef = db.collection("guides").doc(userId);
+    batch.set(guideRef, newGuideApplication);
+
+    const userRef = db.collection("users").doc(userId);
+    batch.update(userRef, { hasPendingApplication: true });
+
+    await batch.commit();
+    return { success: true };
+});
+
+export const updateGuideAvailability = functions.https.onCall(async (data, context) => {
+    const guideId = ensureAuthenticated(context);
+    const { newAvailability } = data;
+
+    if (guideId !== data.guideId) {
+         throw new functions.https.HttpsError("permission-denied", "You can only update your own availability.");
+    }
+
+    if (!newAvailability) {
+        throw new functions.https.HttpsError("invalid-argument", "newAvailability is required.");
+    }
+
+    await db.collection("guides").doc(guideId).update({ availability: newAvailability });
+    return { success: true };
+});
+
+export const updateBookingStatus = functions.https.onCall(async (data, context) => {
+    const guideId = ensureAuthenticated(context);
+    const { bookingId, status } = data;
+
+    const bookingRef = db.collection("bookings").doc(bookingId);
+    const bookingDoc = await bookingRef.get();
+
+    if (!bookingDoc.exists) {
+        throw new functions.https.HttpsError("not-found", "Booking not found.");
+    }
+    if (bookingDoc.data()?.guideId !== guideId) {
+        throw new functions.https.HttpsError("permission-denied", "You can only update status for your own bookings.");
+    }
+    if (!Object.values(BookingStatus).includes(status)) {
+        throw new functions.https.HttpsError("invalid-argument", "Invalid status provided.");
+    }
+    await bookingRef.update({ status });
+    return { success: true };
+});
+
+
+// --- ADMIN FUNCTIONS ---
+export const deleteItem = functions.https.onCall(async (data, context) => {
+    const adminId = ensureAuthenticated(context);
+    await ensureAdmin(adminId);
+
+    const { itemId, itemType } = data;
+    const validTypes = ["user", "guide", "vendor", "stay"];
+    if (!itemId || !itemType || !validTypes.includes(itemType)) {
+        throw new functions.https.HttpsError("invalid-argument", "itemId and a valid itemType are required.");
+    }
+    const collectionName = itemType === "user" ? "users" : `${itemType}s`;
+    await db.collection(collectionName).doc(itemId).delete();
+    return { success: true };
+});
+
+export const updateUserRole = functions.https.onCall(async (data, context) => {
+    const adminId = ensureAuthenticated(context);
+    await ensureAdmin(adminId);
+
+    const { userId, newRole } = data;
+    const validRoles: UserRole[] = ["user", "guide", "admin"];
+    if (!userId || !newRole || !validRoles.includes(newRole)) {
+        throw new functions.https.HttpsError("invalid-argument", "userId and a valid newRole are required.");
+    }
+
+    if (adminId === userId) {
+        throw new functions.https.HttpsError("permission-denied", "Admins cannot change their own role.");
+    }
+
+    await db.collection("users").doc(userId).update({ role: newRole });
+    return { success: true };
 });

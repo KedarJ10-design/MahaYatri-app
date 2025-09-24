@@ -6,7 +6,7 @@ import Input from './common/Input';
 interface StayBookingModalProps {
   stay: Stay;
   onClose: () => void;
-  onBook: (bookingDetails: Omit<StayBooking, 'id' | 'userId'>) => Promise<void>;
+  onBook: (bookingDetails: Omit<StayBooking, 'id' | 'userId' | 'status'>) => Promise<void>;
   addToast: (message: string, type: ToastMessage['type']) => void;
 }
 
@@ -57,7 +57,6 @@ const StayBookingModal: React.FC<StayBookingModalProps> = ({ stay, onClose, onBo
         guests,
         rooms,
         totalPrice,
-        status: BookingStatus.Confirmed, // Stays are auto-confirmed
       });
     } finally {
       setIsBooking(false);

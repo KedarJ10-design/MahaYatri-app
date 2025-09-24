@@ -163,7 +163,8 @@ export interface Achievement {
   id: string;
   title: string;
   description: string;
-  icon: React.ReactNode;
+  // FIX: Changed type from React.ReactNode to string to remove React dependency.
+  icon: string;
   isUnlocked: boolean;
 }
 
@@ -179,7 +180,8 @@ export interface Reward {
     title: string;
     description: string;
     pointsRequired: number;
-    icon: React.ReactNode;
+    // FIX: Changed type from React.ReactNode to string to remove React dependency.
+    icon: string;
 }
 
 // From Final Prompt - Hardened Schemas

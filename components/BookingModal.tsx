@@ -6,7 +6,7 @@ import Input from './common/Input';
 interface BookingModalProps {
   guide: Guide;
   onClose: () => void;
-  onBook: (bookingDetails: Omit<Booking, 'id' | 'userId'>) => Promise<void>;
+  onBook: (bookingDetails: Omit<Booking, 'id' | 'userId' | 'status' | 'pointsEarned' | 'hasBeenReviewed'>) => Promise<void>;
   addToast: (message: string, type: ToastMessage['type']) => void;
 }
 
@@ -55,8 +55,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ guide, onClose, onBook, add
         endDate,
         guests,
         totalPrice,
-        status: BookingStatus.Pending,
-        pointsEarned: Math.floor(totalPrice / 10),
       });
     } finally {
       setIsBooking(false); // Re-enable button on failure, modal closes on success

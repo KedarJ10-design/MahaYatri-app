@@ -1,200 +1,183 @@
-import React, { useState } from 'react';
-import { User, Booking, Guide, BookingStatus, Reward } from '../types';
+
+import React, { useState, useMemo } from 'react';
+import { User, Booking, BookingStatus, Reward, CompletedBooking } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { mockBookings, mockGuides, mockTouristUser } from '../services/mockData';
 import Button from './common/Button';
 import Input from './common/Input';
-import Badge from './Badge';
-import { useAuth } from '../contexts/AuthContext';
-import GuideApplicationModal from './GuideApplicationModal';
-import ReviewModal from './ReviewModal';
+import LazyImage from './common/LazyImage';
 import FriendsManagement from './FriendsManagement';
 
+interface ProfilePageProps {
+  user: User;
+  onApply: () => void;
+  allUsers: User[];
+  onReview: (booking: Booking) => void;
+}
+
 const rewards: Reward[] = [
-    { id: 'reward-1', title: 'Coffee on Us', description: 'Get a voucher for a free coffee at a local cafe.', pointsRequired: 500, icon: '☕' },
-    { id: 'reward-2', title: 'Museum Ticket', description: 'Free entry to a state museum of your choice.', pointsRequired: 1500, icon: '🏛️' },
-    { id: 'reward-3', title: '10% Off Next Tour', description: 'Get a 10% discount on your next guide booking.', pointsRequired: 2500, icon: '💸' },
+    { id: 'reward-1', title: '10% Off Next Booking', description: 'Get a discount on your next guide booking.', pointsRequired: 1000, icon: '%' },
+    { id: 'reward-2', title: 'Free Coffee', description: 'Redeem for a free coffee at a partner cafe.', pointsRequired: 500, icon: '☕' },
+    { id: 'reward-3', title: 'Unlock a Guide', description: 'Get free access to one guide\'s contact info.', pointsRequired: 2500, icon: '🔑' },
 ];
 
-const getStatusBadgeColor = (status: BookingStatus) => {
-    switch (status) {
-        case BookingStatus.Pending: return 'yellow';
-        case BookingStatus.Confirmed: return 'blue';
-        case BookingStatus.Completed: return 'green';
-        case BookingStatus.Cancelled: return 'red';
-        default: return 'gray';
-    }
-};
-
-const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode; }> = ({ active, onClick, children }) => (
-    <button
-        onClick={onClick}
-        className={`px-4 py-2 font-semibold transition-colors duration-200 text-sm sm:text-base ${active ? 'border-b-2 border-primary text-primary' : 'text-gray-500 hover:text-primary'}`}
-    >
+const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
+    <button onClick={onClick} className={`px-4 py-2 font-semibold rounded-t-lg border-b-2 transition-colors ${active ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-primary'}`}>
         {children}
     </button>
 );
 
+const BookingCard: React.FC<{ booking: Booking, onReview: (booking: Booking) => void }> = ({ booking, onReview }) => {
+    const guide = mockGuides.find(g => g.id === booking.guideId);
+    if (!guide) return null;
 
-const ProfilePage: React.FC<{
-    user: User,
-    allUsers: User[],
-    bookings: Booking[],
-    guides: Guide[],
-    addToast: (message: string, type: 'success' | 'error') => void
-}> = ({ user, allUsers, bookings, guides, addToast }) => {
-    const { updateUser, redeemReward } = useAuth();
-    const [isEditing, setIsEditing] = useState(false);
-    const [isApplying, setIsApplying] = useState(false);
-    const [bookingToReview, setBookingToReview] = useState<Booking | null>(null);
-    const [activeTab, setActiveTab] = useState('profile');
-
-    const [formData, setFormData] = useState({
-        name: user.name,
-        emergencyContactName: user.emergencyContact.name,
-        emergencyContactPhone: user.emergencyContact.phone,
-    });
-    
-    const handleSave = async () => {
-        try {
-            await updateUser({
-                name: formData.name,
-                emergencyContact: {
-                    name: formData.emergencyContactName,
-                    phone: formData.emergencyContactPhone,
-                },
-            });
-            addToast('Profile updated successfully!', 'success');
-            setIsEditing(false);
-        } catch (error) {
-            addToast('Failed to update profile.', 'error');
-        }
+    const statusStyles: Record<BookingStatus, string> = {
+        [BookingStatus.Confirmed]: 'bg-blue-100 text-blue-800',
+        [BookingStatus.Completed]: 'bg-green-100 text-green-800',
+        [BookingStatus.Cancelled]: 'bg-red-100 text-red-800',
+        [BookingStatus.Pending]: 'bg-yellow-100 text-yellow-800',
     };
 
-    const handleRedeem = async (reward: Reward) => {
-        if (user.points < reward.pointsRequired) {
-            addToast("Not enough points!", "error");
-            return;
-        }
-        try {
-            await redeemReward(reward);
-            addToast(`"${reward.title}" redeemed!`, "success");
-        } catch (error) {
-            addToast("Failed to redeem reward.", "error");
-        }
-    }
-    
-    const upcomingBookings = bookings.filter(b => new Date(b.endDate) >= new Date() && b.status !== BookingStatus.Cancelled);
-    const pastBookings = bookings.filter(b => new Date(b.endDate) < new Date() || b.status === BookingStatus.Cancelled || b.status === BookingStatus.Completed);
-    
     return (
-        <div className="space-y-8 animate-fade-in">
-            {/* Profile Header */}
-            <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-8">
-                <img src={user.avatarUrl} alt={user.name} className="w-32 h-32 rounded-full border-4 border-primary shadow-md" />
-                <div className="text-center md:text-left flex-grow">
-                    <h1 className="text-4xl font-extrabold font-heading">{user.name}</h1>
-                    <p className="text-gray-500 dark:text-gray-400">{user.email}</p>
-                    {user.isPro && <Badge color="yellow">MahaYatri Pro</Badge>}
+        <div className="bg-white dark:bg-dark-light p-4 rounded-lg shadow-sm flex flex-col sm:flex-row items-start gap-4">
+            <LazyImage src={guide.avatarUrl} alt={guide.name} className="w-full sm:w-24 h-24 rounded-md object-cover flex-shrink-0" placeholderClassName="rounded-md" />
+            <div className="flex-grow">
+                <div className="flex justify-between items-start">
+                    <h3 className="font-bold text-lg">{guide.name}</h3>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusStyles[booking.status]}`}>{booking.status}</span>
                 </div>
-                {!isEditing && activeTab === 'profile' && <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>}
+                <p className="text-sm text-gray-500">{new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}</p>
+                <p className="text-sm text-gray-500">{booking.guests} guest(s)</p>
+                <p className="font-bold mt-2">Total: ₹{booking.totalPrice.toLocaleString()}</p>
             </div>
-
-            {/* Tabs */}
-            <div className="bg-white dark:bg-dark-light p-2 rounded-2xl shadow-lg flex justify-center gap-4">
-                <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')}>Profile & Bookings</TabButton>
-                <TabButton active={activeTab === 'rewards'} onClick={() => setActiveTab('rewards')}>Rewards</TabButton>
-                <TabButton active={activeTab === 'friends'} onClick={() => setActiveTab('friends')}>Friends</TabButton>
-            </div>
-
-            {/* Tab Content */}
-            <div className="animate-fade-in-slow">
-                {activeTab === 'profile' && (
-                    <div className="space-y-8">
-                        {/* Profile Details & Emergency Contact */}
-                        <div className={`bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg ${isEditing ? 'block' : 'hidden'} md:block`}>
-                            <h2 className="text-2xl font-bold font-heading mb-6">My Details</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <Input label="Full Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} disabled={!isEditing} />
-                                <Input label="Emergency Contact Name" value={formData.emergencyContactName} onChange={e => setFormData({...formData, emergencyContactName: e.target.value})} disabled={!isEditing} />
-                                <Input label="Emergency Contact Phone" value={formData.emergencyContactPhone} onChange={e => setFormData({...formData, emergencyContactPhone: e.target.value})} disabled={!isEditing} />
-                            </div>
-                            {isEditing && (
-                                <div className="mt-6 flex justify-end gap-4">
-                                    <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
-                                    <Button onClick={handleSave}>Save Changes</Button>
-                                </div>
-                            )}
-                        </div>
-                        {/* Bookings */}
-                        <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg">
-                            <h2 className="text-2xl font-bold font-heading mb-6">My Bookings</h2>
-                            <h3 className="font-semibold mb-2">Upcoming</h3>
-                            {upcomingBookings.length > 0 ? upcomingBookings.map(booking => {
-                                const guide = guides.find(g => g.id === booking.guideId);
-                                return <div key={booking.id} className="p-3 mb-2 bg-light dark:bg-dark rounded-lg flex justify-between items-center">
-                                    <p>Tour with <strong>{guide?.name || '...'}</strong> on {new Date(booking.startDate).toLocaleDateString()}</p>
-                                    <Badge color={getStatusBadgeColor(booking.status)}>{booking.status}</Badge>
-                                </div>
-                            }) : <p className="text-gray-500">No upcoming bookings.</p>}
-                            
-                            <h3 className="font-semibold mb-2 mt-6">Past</h3>
-                            {pastBookings.length > 0 ? pastBookings.map(booking => {
-                                const guide = guides.find(g => g.id === booking.guideId);
-                                return <div key={booking.id} className="p-3 mb-2 bg-light dark:bg-dark rounded-lg flex justify-between items-center">
-                                    <div>
-                                        <p>Tour with <strong>{guide?.name || '...'}</strong> on {new Date(booking.startDate).toLocaleDateString()}</p>
-                                        <Badge color={getStatusBadgeColor(booking.status)}>{booking.status}</Badge>
-                                    </div>
-                                    {booking.status === BookingStatus.Completed && !booking.hasBeenReviewed && <Button size="sm" onClick={() => setBookingToReview(booking)}>Leave a Review</Button>}
-                                </div>
-                            }) : <p className="text-gray-500">No past bookings.</p>}
-                        </div>
-                    </div>
-                )}
-                {activeTab === 'rewards' && (
-                     <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg">
-                         <h2 className="text-2xl font-bold font-heading mb-6">My Points & Rewards</h2>
-                         <p className="text-5xl font-extrabold text-primary text-center mb-6">{user.points} <span className="text-2xl text-gray-500">Points</span></p>
-                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {rewards.map(reward => (
-                                <div key={reward.id} className={`p-4 rounded-lg border-2 text-center ${user.redeemedRewardIds.includes(reward.id) ? 'bg-gray-100 dark:bg-dark' : 'bg-light dark:bg-dark-lighter'}`}>
-                                    <span className="text-4xl">{reward.icon}</span>
-                                    <h3 className="font-bold mt-2">{reward.title}</h3>
-                                    <p className="text-sm text-gray-500 h-12">{reward.description}</p>
-                                    <Button
-                                        className="w-full mt-4"
-                                        disabled={user.points < reward.pointsRequired || user.redeemedRewardIds.includes(reward.id)}
-                                        onClick={() => handleRedeem(reward)}
-                                    >
-                                        {user.redeemedRewardIds.includes(reward.id) ? 'Redeemed' : `Redeem (${reward.pointsRequired} pts)`}
-                                    </Button>
-                                </div>
-                            ))}
-                         </div>
-                    </div>
-                )}
-                {activeTab === 'friends' && (
-                    <FriendsManagement currentUser={user} allUsers={allUsers} addToast={addToast} />
-                )}
-            </div>
-
-            {/* Guide Application CTA */}
-            {user.role === 'user' && !user.hasPendingApplication && (
-                 <div className="bg-gradient-to-r from-primary to-accent text-white p-8 rounded-2xl shadow-lg text-center">
-                    <h2 className="text-3xl font-bold font-heading">Become a Local Guide!</h2>
-                    <p className="mt-2 max-w-xl mx-auto">Share your passion for Maharashtra, meet travelers from around the world, and earn on your own schedule.</p>
-                    <Button onClick={() => setIsApplying(true)} className="mt-6 bg-white text-primary hover:bg-white/90">Apply Now</Button>
-                </div>
+            {booking.status === BookingStatus.Completed && !(booking as CompletedBooking).hasBeenReviewed && (
+                <Button size="sm" onClick={() => onReview(booking)} className="w-full sm:w-auto mt-2 sm:mt-0">Leave Review</Button>
             )}
-            {user.hasPendingApplication && (
-                <div className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200 p-4 rounded-lg text-center">
-                    Your guide application is currently under review.
-                </div>
-            )}
-            
-            {isApplying && <GuideApplicationModal onClose={() => setIsApplying(false)} addToast={addToast} />}
-            {bookingToReview && <ReviewModal booking={bookingToReview} onClose={() => setBookingToReview(null)} addToast={addToast} />}
         </div>
     );
+};
+
+
+const ProfilePage: React.FC<ProfilePageProps> = ({ user, onApply, allUsers, onReview }) => {
+  const { updateUser, redeemReward } = useAuth();
+  const [activeTab, setActiveTab] = useState('bookings');
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+      name: user.name,
+      emergencyContactName: user.emergencyContact.name,
+      emergencyContactPhone: user.emergencyContact.phone,
+  });
+  
+  const handleUpdate = async () => {
+    await updateUser({
+      name: formData.name,
+      emergencyContact: {
+        name: formData.emergencyContactName,
+        phone: formData.emergencyContactPhone,
+      }
+    });
+    setIsEditing(false);
+  };
+  
+  const { upcomingBookings, pastBookings } = useMemo(() => {
+      const now = new Date();
+      const userBookings = mockBookings.filter(b => b.userId === user.id);
+      return {
+          upcomingBookings: userBookings.filter(b => new Date(b.startDate) >= now && (b.status === BookingStatus.Confirmed || b.status === BookingStatus.Pending)),
+          pastBookings: userBookings.filter(b => new Date(b.startDate) < now || b.status === BookingStatus.Completed || b.status === BookingStatus.Cancelled),
+      }
+  }, [user.id]);
+
+  return (
+    <div className="max-w-5xl mx-auto animate-fade-in space-y-8">
+      <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-8">
+        <LazyImage src={user.avatarUrl} alt={user.name} className="w-32 h-32 rounded-full border-4 border-primary shadow-md" placeholderClassName="rounded-full" />
+        <div className="flex-grow text-center md:text-left">
+          <h1 className="text-3xl font-bold font-heading">{user.name}</h1>
+          <p className="text-gray-500">{user.email}</p>
+          <div className="mt-2 flex items-center justify-center md:justify-start gap-4">
+            <div className="text-center">
+                <p className="text-2xl font-bold text-primary">{user.points}</p>
+                <p className="text-xs text-gray-500">Points</p>
+            </div>
+             <div className="text-center">
+                <p className="text-2xl font-bold text-secondary">{upcomingBookings.length}</p>
+                <p className="text-xs text-gray-500">Upcoming Trips</p>
+            </div>
+          </div>
+        </div>
+         {user.role === 'user' && !user.hasPendingApplication && (
+            <Button onClick={onApply} variant="outline" className="flex-shrink-0">Apply to be a Guide</Button>
+         )}
+         {user.hasPendingApplication && (
+             <p className="p-2 bg-yellow-100 text-yellow-800 text-sm rounded-md text-center">Your guide application is under review.</p>
+         )}
+      </div>
+
+      <div className="border-b border-gray-200 dark:border-gray-700">
+        <TabButton active={activeTab === 'bookings'} onClick={() => setActiveTab('bookings')}>My Bookings</TabButton>
+        <TabButton active={activeTab === 'rewards'} onClick={() => setActiveTab('rewards')}>Rewards</TabButton>
+        <TabButton active={activeTab === 'friends'} onClick={() => setActiveTab('friends')}>Friends</TabButton>
+        <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')}>Settings</TabButton>
+      </div>
+
+      <div>
+        {activeTab === 'bookings' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-bold mb-4">Upcoming Bookings</h2>
+              {upcomingBookings.length > 0 ? upcomingBookings.map(b => <BookingCard key={b.id} booking={b} onReview={onReview} />) : <p className="text-gray-500">No upcoming trips. Time to plan an adventure!</p>}
+            </div>
+             <div>
+              <h2 className="text-xl font-bold mb-4">Past Bookings</h2>
+              {pastBookings.length > 0 ? pastBookings.map(b => <BookingCard key={b.id} booking={b} onReview={onReview} />) : <p className="text-gray-500">No past trips found.</p>}
+            </div>
+          </div>
+        )}
+        {activeTab === 'rewards' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rewards.map(reward => {
+              const isRedeemed = user.redeemedRewardIds.includes(reward.id);
+              const canAfford = user.points >= reward.pointsRequired;
+              return (
+                  <div key={reward.id} className={`p-6 rounded-lg shadow-sm flex flex-col text-center ${isRedeemed ? 'bg-gray-100 dark:bg-dark-lighter' : 'bg-white dark:bg-dark-light'}`}>
+                    <div className="text-4xl mx-auto">{reward.icon}</div>
+                    <h3 className="font-bold text-lg mt-2">{reward.title}</h3>
+                    <p className="text-gray-500 text-sm flex-grow">{reward.description}</p>
+                    <div className="mt-4">
+                        <Button className="w-full" disabled={isRedeemed || !canAfford} onClick={() => redeemReward(reward)}>
+                            {isRedeemed ? 'Redeemed' : `${reward.pointsRequired} Points`}
+                        </Button>
+                    </div>
+                  </div>
+              );
+            })}
+          </div>
+        )}
+        {activeTab === 'friends' && <FriendsManagement currentUser={user} allUsers={allUsers} addToast={(msg, type) => console.log(msg, type)} />}
+        {activeTab === 'settings' && (
+            <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg max-w-lg mx-auto">
+                <h2 className="text-xl font-bold mb-4">Edit Profile</h2>
+                <div className="space-y-4">
+                   <Input label="Full Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} disabled={!isEditing} />
+                   <Input label="Emergency Contact Name" value={formData.emergencyContactName} onChange={e => setFormData({...formData, emergencyContactName: e.target.value})} disabled={!isEditing} />
+                   <Input label="Emergency Contact Phone" value={formData.emergencyContactPhone} onChange={e => setFormData({...formData, emergencyContactPhone: e.target.value})} disabled={!isEditing} />
+                </div>
+                 <div className="mt-6 flex justify-end gap-4">
+                    {isEditing ? (
+                        <>
+                            <Button variant="outline" onClick={() => setIsEditing(false)}>Cancel</Button>
+                            <Button onClick={handleUpdate}>Save Changes</Button>
+                        </>
+                    ) : (
+                        <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
+                    )}
+                </div>
+            </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default ProfilePage;

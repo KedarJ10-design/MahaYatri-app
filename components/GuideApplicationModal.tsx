@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User } from '../types';
+import { useForm } from 'react-hook-form';
 import Button from './common/Button';
 import Input from './common/Input';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,32 +10,41 @@ interface GuideApplicationModalProps {
   addToast: (message: string, type: 'success' | 'error') => void;
 }
 
+type FormData = {
+    location: string;
+    languages: string;
+    specialties: string;
+    bio: string;
+    pricePerDay: number;
+}
+
 const GuideApplicationModal: React.FC<GuideApplicationModalProps> = ({ onClose, addToast }) => {
   const { user, updateUser } = useAuth();
-  const [formData, setFormData] = useState({
-    location: '',
-    languages: '',
-    specialties: '',
-    bio: '',
-    pricePerDay: 5000,
-  });
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+  } = useForm<FormData>({
+    mode: 'onChange',
+    defaultValues: {
+      location: '',
+      languages: '',
+      specialties: '',
+      bio: '',
+      pricePerDay: 5000,
+    }
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: FormData) => {
     if (!user || !functions) return;
     setIsLoading(true);
 
     try {
         // In a real app, this would be a Cloud Function call.
-        // We simulate the update here.
         // const apply = functions.httpsCallable('applyToBeGuide');
-        // await apply({ ... });
+        // await apply(data);
         await updateUser({ hasPendingApplication: true });
         addToast('Application submitted successfully! Our team will review it shortly.', 'success');
         onClose();
@@ -48,7 +57,6 @@ const GuideApplicationModal: React.FC<GuideApplicationModalProps> = ({ onClose, 
     }
   };
 
-
   if (!user) return null;
 
   return (
@@ -57,32 +65,70 @@ const GuideApplicationModal: React.FC<GuideApplicationModalProps> = ({ onClose, 
         <div className="p-6 border-b">
           <h2 className="text-2xl font-bold">Apply to be a MahaYatri Guide</h2>
         </div>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Your name ({user.name}) and profile picture will be used from your current profile. Please fill out the details below to complete your application.
             </p>
-            <Input label="Primary Location" name="location" value={formData.location} onChange={handleChange} placeholder="e.g., Mumbai" required />
-            <Input label="Languages (comma-separated)" name="languages" value={formData.languages} onChange={handleChange} placeholder="English, Marathi, Hindi" required />
-            <Input label="Specialties (comma-separated)" name="specialties" value={formData.specialties} onChange={handleChange} placeholder="Street Food, History, Bollywood" required />
+            <div>
+              <Input 
+                label="Primary Location" 
+                placeholder="e.g., Mumbai" 
+                {...register('location', { required: 'Location is required.' })}
+                aria-invalid={errors.location ? 'true' : 'false'}
+              />
+              {errors.location && <p className="text-sm text-red-500 mt-1">{errors.location.message}</p>}
+            </div>
+            <div>
+              <Input 
+                label="Languages (comma-separated)" 
+                placeholder="English, Marathi, Hindi" 
+                {...register('languages', { required: 'Please list the languages you speak.' })}
+                aria-invalid={errors.languages ? 'true' : 'false'}
+              />
+              {errors.languages && <p className="text-sm text-red-500 mt-1">{errors.languages.message}</p>}
+            </div>
+            <div>
+              <Input 
+                label="Specialties (comma-separated)" 
+                placeholder="Street Food, History, Bollywood" 
+                {...register('specialties', { required: 'Please list your specialties.' })}
+                aria-invalid={errors.specialties ? 'true' : 'false'}
+              />
+              {errors.specialties && <p className="text-sm text-red-500 mt-1">{errors.specialties.message}</p>}
+            </div>
             <div>
               <label htmlFor="bio" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Your Bio</label>
               <textarea
                 id="bio"
-                name="bio"
                 rows={4}
                 className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light focus:ring-2 focus:ring-primary focus:border-transparent transition"
                 placeholder="Tell travelers a little about yourself and your tours."
-                value={formData.bio}
-                onChange={handleChange}
-                required
+                {...register('bio', { 
+                    required: 'A bio is required.',
+                    minLength: { value: 50, message: 'Bio must be at least 50 characters long.' }
+                })}
+                aria-invalid={errors.bio ? 'true' : 'false'}
               />
+              {errors.bio && <p className="text-sm text-red-500 mt-1">{errors.bio.message}</p>}
             </div>
-            <Input label="Price per Day (INR)" name="pricePerDay" type="number" min="1000" value={formData.pricePerDay} onChange={handleChange} required />
+            <div>
+              <Input 
+                label="Price per Day (INR)" 
+                type="number" 
+                {...register('pricePerDay', {
+                    required: 'Price is required.',
+                    valueAsNumber: true,
+                    min: { value: 1000, message: 'Price must be at least ₹1000.' }
+                })}
+                aria-invalid={errors.pricePerDay ? 'true' : 'false'}
+              />
+              {errors.pricePerDay && <p className="text-sm text-red-500 mt-1">{errors.pricePerDay.message}</p>}
+            </div>
           </div>
           <div className="p-4 bg-gray-50 dark:bg-dark rounded-b-2xl flex justify-end gap-4">
             <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>Cancel</Button>
-            <Button type="submit" loading={isLoading}>Submit Application</Button>
+            <Button type="submit" loading={isLoading} disabled={!isValid || isLoading}>Submit Application</Button>
           </div>
         </form>
       </div>

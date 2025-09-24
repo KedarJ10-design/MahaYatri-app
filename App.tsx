@@ -1,241 +1,226 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Page, User, Guide, Booking, BookingStatus, DetailedItinerary, PlaceSuggestion, Vendor, Stay, Notification, ToastMessage, UserRole, Review, CostEstimate } from './types';
+
+
+import React, { useState, useEffect, useCallback, ReactNode } from 'react';
+import { Page, DetailedItinerary, ToastMessage, User, Booking, Stay, Vendor, Guide, Verifiable } from './types';
 import { useAuth } from './contexts/AuthContext';
-import { mockGuides, mockBookings, mockVendors, mockStays, mockNotifications, otherUsers } from './services/mockData';
-import { getLatestItinerary, saveBookings, getBookings as getBookingsFromDB } from './services/db';
-import LoginPage from './components/LoginPage';
+import { getLatestItinerary, saveItinerary, getBookings, saveBookings } from './services/db';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
+// FIX: Merged all imports from mockData into a single line, and added mockCostEstimate. This also resolves the missing 'mockUsers' export error by relying on the fix in mockData.ts.
+import { mockBookings, mockGuides, mockStays, mockUsers as allMockUsers, mockVendors, otherUsers, mockCostEstimate } from './services/mockData';
+
 import Header from './components/Header';
 import Footer from './components/Footer';
+import LoginPage from './components/LoginPage';
 import HomePage from './components/HomePage';
 import SearchPage from './components/SearchPage';
 import TripPlannerPage from './components/TripPlannerPage';
+import ItineraryPage from './components/ItineraryPage';
 import ProfilePage from './components/ProfilePage';
+import StaysPage from './components/StaysPage';
+import VendorsPage from './components/VendorsPage';
 import ExplorePage from './components/ExplorePage';
 import ChatPage from './components/ChatPage';
-import ItineraryPage from './components/ItineraryPage';
 import AdminPage from './components/AdminPage';
 import GuideDashboardPage from './components/GuideDashboardPage';
 import AboutPage from './components/AboutPage';
 import ContactPage from './components/ContactPage';
 import PrivacyPolicyPage from './components/PrivacyPolicyPage';
-import StaysPage from './components/StaysPage';
-import VendorsPage from './components/VendorsPage';
 import FAQPage from './components/FAQPage';
+import Spinner from './components/common/Spinner';
+import Toast from './components/common/Toast';
 import Chatbot from './components/Chatbot';
 import SOSButton from './components/SOSButton';
-import SOSModal from './components/SOSModal';
-import UpgradeModal from './components/UpgradeModal';
+
+// Modals
+import BookingModal from './components/BookingModal';
+import StayBookingModal from './components/StayBookingModal';
+import VendorBookingModal from './components/VendorBookingModal';
+import ReviewModal from './components/ReviewModal';
 import CostEstimationModal from './components/CostEstimationModal';
+import UpgradeModal from './components/UpgradeModal';
+import SOSModal from './components/SOSModal';
+import GuideApplicationModal from './components/GuideApplicationModal';
 import LiveTripModal from './components/LiveTripModal';
-import Toast from './components/common/Toast';
-import Spinner from './components/common/Spinner';
+import VerificationModal from './components/VerificationModal';
+import AddItemModal from './components/AddItemModal';
+import ConfirmationModal from './components/common/ConfirmationModal';
+
+// Mock functions for offline/demo mode
+import { estimateTripCost } from './services/geminiService';
 
 const App: React.FC = () => {
-    const { user, loading, updateUser, signOut } = useAuth();
-    
-    // Global state
+    const { user, loading } = useAuth();
+    const isOnline = useOnlineStatus();
+
     const [currentPage, setCurrentPage] = useState<Page>(Page.Home);
     const [itinerary, setItinerary] = useState<DetailedItinerary | null>(null);
-    const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
+    
+    // Modal states
+    const [bookingModalGuide, setBookingModalGuide] = useState<Guide | null>(null);
+    const [stayBookingModalStay, setStayBookingModalStay] = useState<Stay | null>(null);
+    const [vendorBookingModalVendor, setVendorBookingModalVendor] = useState<Vendor | null>(null);
+    const [reviewModalBooking, setReviewModalBooking] = useState<Booking | null>(null);
+    const [isCostModalOpen, setIsCostModalOpen] = useState(false);
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+    const [isSOSModalOpen, setIsSOSModalOpen] = useState(false);
+    const [isGuideAppModalOpen, setIsGuideAppModalOpen] = useState(false);
+    const [isLiveTripModalOpen, setIsLiveTripModalOpen] = useState(false);
+    const [verificationItem, setVerificationItem] = useState<Verifiable | null>(null);
+    const [addItemType, setAddItemType] = useState<'guide'|'vendor'|'stay'|null>(null);
+    const [confirmationModal, setConfirmationModal] = useState<{title: string, message: React.ReactNode, onConfirm: () => void, confirmButtonVariant?: 'primary'|'danger'}|null>(null);
 
-    // Modal state
-    const [isSOSModalOpen, setSOSModalOpen] = useState(false);
-    const [isUpgradeModalOpen, setUpgradeModalOpen] = useState(false);
-    const [isCostModalOpen, setCostModalOpen] = useState(false);
-    const [isLiveTripModalOpen, setLiveTripModalOpen] = useState(false);
-    const [costEstimate, setCostEstimate] = useState<CostEstimate | null>(null);
+    const [costEstimate, setCostEstimate] = useState(mockCostEstimate);
 
-    // Data state (simulating a database)
-    const [guides, setGuides] = useState<Guide[]>(mockGuides);
-    const [vendors, setVendors] = useState<Vendor[]>(mockVendors);
-    const [stays, setStays] = useState<Stay[]>(mockStays);
-    const [bookings, setBookings] = useState<Booking[]>(mockBookings);
-    const [allUsers, setAllUsers] = useState<User[]>([...otherUsers, user!].filter(Boolean));
+    // FIX: Created a handler function to match the signature expected by AdminPage's `onConfirm` prop.
+    const handleConfirm = (title: string, message: ReactNode, onConfirm: () => void, confirmButtonVariant?: 'primary'|'danger') => {
+        setConfirmationModal({ title, message, onConfirm, confirmButtonVariant });
+    };
 
-    // Offline data loading on initial mount
     useEffect(() => {
         const loadOfflineData = async () => {
-            const cachedItinerary = await getLatestItinerary();
-            if (cachedItinerary) {
-                setItinerary(cachedItinerary);
-            }
-            const cachedBookings = await getBookingsFromDB();
-             if (cachedBookings.length > 0) {
-                // In a real app with a backend, you'd merge this with fresh data.
-                // For mock mode, we just load it.
-                setBookings(cachedBookings);
+            const offlineItinerary = await getLatestItinerary();
+            if (offlineItinerary) {
+                setItinerary(offlineItinerary);
             }
         };
         loadOfflineData();
     }, []);
 
-    // Save bookings to IndexedDB whenever they change
-    useEffect(() => {
-        if (bookings.length > 0) {
-            saveBookings(bookings);
-        }
-    }, [bookings]);
-
-    // Reset to home page on user change (login/logout)
-    useEffect(() => {
-        setCurrentPage(Page.Home);
-        setItinerary(null);
-    }, [user]);
-    
-    useEffect(() => {
-        if(user) setAllUsers(prev => [...prev.filter(u => u.id !== user.id), user]);
-    }, [user]);
-
     const addToast = useCallback((message: string, type: ToastMessage['type']) => {
-        const newToast: ToastMessage = { id: Date.now(), message, type };
-        setToasts(prev => [...prev, newToast]);
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
     }, []);
 
+    const removeToast = (id: number) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
+    
     const handleNavigate = (page: Page) => {
-        if (page === Page.TripPlanner && itinerary) {
-            setItinerary(null); // Reset itinerary when navigating back to planner
-        }
         setCurrentPage(page);
+        if (page !== Page.Itinerary) {
+            // Clear itinerary if we navigate away, unless to trip planner
+             if (page !== Page.TripPlanner) {
+                setItinerary(null);
+             }
+        }
         window.scrollTo(0, 0);
     };
 
-    const handleItineraryGenerated = (generatedItinerary: DetailedItinerary) => {
-        setItinerary(generatedItinerary);
+    const handleItineraryGenerated = (newItinerary: DetailedItinerary) => {
+        setItinerary(newItinerary);
         setCurrentPage(Page.Itinerary);
-    };
-
-    const handleStartTrip = () => {
-        if (itinerary) {
-            setLiveTripModalOpen(true);
-            addToast("Your live trip has started!", "success");
-        }
     };
     
     const handleEstimateCost = async () => {
-        if (itinerary) {
-            // In a real app, this would call the gemini service.
-            // For this mock, we'll just create some plausible data.
-            const estimated: CostEstimate = {
-                accommodation: { amount: itinerary.total_estimated_cost * 0.4, description: "Mid-range hotels" },
-                food: { amount: itinerary.total_estimated_cost * 0.3, description: "Mix of local and cafe dining" },
-                localTransport: { amount: itinerary.total_estimated_cost * 0.15, description: "Rickshaws and local taxis" },
-                activities: { amount: itinerary.total_estimated_cost * 0.15, description: "Entry fees and tours" },
-            };
-            setCostEstimate(estimated);
-            setCostModalOpen(true);
+        if (!itinerary) return;
+        if (!user?.isPro) {
+            setIsUpgradeModalOpen(true);
+            return;
         }
-    }
-
-    const handleUpdateUserRole = async (userId: string, newRole: UserRole) => {
+        addToast("Estimating costs with AI...", "info");
         try {
-            const userToUpdate = allUsers.find(u => u.id === userId);
-            if (!userToUpdate) throw new Error("User not found");
-            // In a real app this is a backend call. Here we just update local state.
-            setAllUsers(allUsers.map(u => u.id === userId ? { ...u, role: newRole } : u));
-            addToast(`Updated ${userToUpdate.name}'s role to ${newRole}.`, 'success');
-        } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : "Failed to update user role.";
-            addToast(message, "error");
-            throw e;
+            const estimate = await estimateTripCost(itinerary);
+            setCostEstimate(estimate);
+            setIsCostModalOpen(true);
+        } catch (error) {
+            console.error("Cost estimation failed", error);
+            addToast("Couldn't estimate costs. Using a mock estimate.", "error");
+            setCostEstimate(mockCostEstimate);
+            setIsCostModalOpen(true);
         }
     };
 
-    const handleDeleteItem = (id: string, type: 'guide' | 'vendor' | 'stay' | 'user') => {
-        // Mock deletion
-        if (type === 'guide') setGuides(guides.filter(g => g.id !== id));
-        if (type === 'vendor') setVendors(vendors.filter(v => v.id !== id));
-        if (type === 'stay') setStays(stays.filter(s => s.id !== id));
-        if (type === 'user') {
-            if (user?.id === id) {
-                addToast("You can't delete yourself!", "error");
-                return;
-            }
-            setAllUsers(allUsers.filter(u => u.id !== id));
-        }
-        addToast(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully.`, 'success');
+    const handleBookGuide = async (details: Omit<Booking, 'id' | 'userId' | 'status' | 'pointsEarned'>) => {
+        // Mock implementation
+        addToast(`Booking request sent for ${details.guideId}!`, 'success');
+        setBookingModalGuide(null);
     };
-    
-    // Mock handler for the follow feature to provide immediate UI feedback.
-    const handleFollowToggle = (guideId: string) => {
-        if (!user) return;
-        const isFollowing = user.followingGuideIds.includes(guideId);
-        
-        // Update guide's follower count
-        setGuides(prevGuides => prevGuides.map(g => {
-            if (g.id === guideId) {
-                return { ...g, followersCount: g.followersCount + (isFollowing ? -1 : 1) };
-            }
-            return g;
-        }));
 
-        // Update user's following list (delegated to useAuth for persistence)
-        const newFollowingIds = isFollowing
-            ? user.followingGuideIds.filter(id => id !== guideId)
-            : [...user.followingGuideIds, guideId];
-        
-        updateUser({ followingGuideIds: newFollowingIds });
+    const handleBookStay = async (details: Omit<any, 'id' | 'userId' | 'status'>) => {
+        addToast(`Stay booked successfully!`, 'success');
+        setStayBookingModalStay(null);
+    };
+
+    const handleBookVendor = async (details: Omit<any, 'id' | 'userId' | 'status'>) => {
+        addToast(`Table booked successfully!`, 'success');
+        setVendorBookingModalVendor(null);
     };
 
     if (loading) {
-        return <div className="min-h-screen flex items-center justify-center bg-light dark:bg-dark"><Spinner className="w-12 h-12" /></div>;
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-light dark:bg-dark">
+                <Spinner className="w-12 h-12 border-4" />
+            </div>
+        );
     }
 
     if (!user) {
         return <LoginPage />;
     }
-
+    
     const renderPage = () => {
-        if (itinerary && currentPage === Page.Itinerary) {
-            return <ItineraryPage 
-                        itinerary={itinerary} 
-                        onBack={() => setCurrentPage(Page.TripPlanner)} 
-                        user={user}
-                        onEstimateCost={handleEstimateCost}
-                        onUpgrade={() => setUpgradeModalOpen(true)}
-                        onStartTrip={handleStartTrip}
-                    />;
+        // Force redirect if role doesn't match page
+        if (user.role === 'guide' && currentPage !== Page.GuideDashboard) {
+            setCurrentPage(Page.GuideDashboard);
         }
-        
+        if (user.role === 'admin' && currentPage !== Page.Admin) {
+            setCurrentPage(Page.Admin);
+        }
+
         switch (currentPage) {
-            case Page.Home: return <HomePage onNavigate={handleNavigate} guides={guides} user={user} />;
-            case Page.Search: return <SearchPage guides={guides} allUsers={allUsers} onFollowToggle={handleFollowToggle} user={user} addToast={addToast} />;
-            case Page.TripPlanner: return <TripPlannerPage onItineraryGenerated={handleItineraryGenerated} user={user} />;
-            case Page.Profile: return <ProfilePage user={user} allUsers={allUsers} bookings={bookings.filter(b => b.userId === user.id)} guides={guides} addToast={addToast} />;
+            case Page.Home: return <HomePage onNavigate={handleNavigate} user={user} />;
             case Page.Explore: return <ExplorePage />;
-            case Page.Chat: return <ChatPage currentUser={user} guides={guides} activeConversationId={null} onViewConversation={() => {}} onSendMessage={async () => {}} onBack={() => {}} addToast={addToast} />;
-            case Page.Admin: return <AdminPage users={allUsers} guides={guides} vendors={vendors} stays={stays} onDeleteItem={handleDeleteItem} onUpdateUserRole={handleUpdateUserRole} addToast={addToast} />;
-            case Page.GuideDashboard: return <GuideDashboardPage guideUser={user} allUsers={allUsers} onUpdateAvailability={async () => {}} onUpdateBookingStatus={async () => {}} addToast={addToast} />;
+            case Page.Search: return <SearchPage onBook={setBookingModalGuide} />;
+            case Page.TripPlanner: return <TripPlannerPage onItineraryGenerated={handleItineraryGenerated} user={user} />;
+            case Page.Itinerary: return itinerary ? <ItineraryPage itinerary={itinerary} onBack={() => setCurrentPage(Page.TripPlanner)} user={user} onEstimateCost={handleEstimateCost} onUpgrade={() => setIsUpgradeModalOpen(true)} onStartTrip={() => setIsLiveTripModalOpen(true)} /> : <TripPlannerPage onItineraryGenerated={handleItineraryGenerated} user={user} />;
+            case Page.Profile: return <ProfilePage user={user} onApply={() => setIsGuideAppModalOpen(true)} allUsers={[...otherUsers, user]} onReview={setReviewModalBooking} />;
+            case Page.Stays: return <StaysPage onBook={setStayBookingModalStay} />;
+            case Page.Vendors: return <VendorsPage onBook={setVendorBookingModalVendor}/>;
+            case Page.Chat: return <ChatPage currentUser={user} allUsers={allMockUsers} />;
+            case Page.GuideDashboard: return user.role === 'guide' ? <GuideDashboardPage guideUser={user} /> : <HomePage onNavigate={handleNavigate} user={user} />;
+            // FIX: Pass the new handler function to the `onConfirm` prop.
+            case Page.Admin: return user.role === 'admin' ? <AdminPage onVerify={setVerificationItem} onAdd={setAddItemType} onConfirm={handleConfirm} /> : <HomePage onNavigate={handleNavigate} user={user} />;
             case Page.About: return <AboutPage />;
             case Page.Contact: return <ContactPage />;
             case Page.PrivacyPolicy: return <PrivacyPolicyPage />;
-            case Page.Stays: return <StaysPage stays={stays} addToast={addToast} />;
-            case Page.Vendors: return <VendorsPage vendors={vendors} addToast={addToast} />;
             case Page.FAQ: return <FAQPage />;
-            default: return <HomePage onNavigate={handleNavigate} guides={guides} user={user} />;
+            default: return <HomePage onNavigate={handleNavigate} user={user} />;
         }
     };
 
     return (
-        <div className="flex flex-col min-h-screen bg-light dark:bg-dark text-dark dark:text-light font-body">
-            <Header user={user} currentPage={currentPage} onNavigate={handleNavigate} notifications={notifications} onUpdateNotifications={setNotifications} />
+        <div className="bg-light dark:bg-dark min-h-screen flex flex-col font-sans text-dark dark:text-light">
+            <Header user={user} currentPage={currentPage} onNavigate={handleNavigate} notifications={[]} onUpdateNotifications={() => {}} />
             <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {renderPage()}
             </main>
             <Footer onNavigate={handleNavigate} />
-            
-            {/* Global Components & Modals */}
+
+            {/* Global Components */}
             <Chatbot />
-            {user.role === 'user' && <SOSButton onSOS={() => setSOSModalOpen(true)} />}
-            {isSOSModalOpen && user.emergencyContact && <SOSModal user={user} onClose={() => setSOSModalOpen(false)} />}
-            {isUpgradeModalOpen && <UpgradeModal onClose={() => setUpgradeModalOpen(false)} />}
-            {isCostModalOpen && costEstimate && <CostEstimationModal estimate={costEstimate} onClose={() => setCostModalOpen(false)} />}
-            {isLiveTripModalOpen && itinerary && <LiveTripModal itinerary={itinerary} onClose={() => setLiveTripModalOpen(false)} />}
-            
+            {isLiveTripModalOpen && <SOSButton onSOS={() => setIsSOSModalOpen(true)} />}
+
             {/* Toast Container */}
-            <div className="fixed top-20 right-4 z-[100] w-full max-w-sm space-y-2">
-                {toasts.map(toast => <Toast key={toast.id} toast={toast} onRemove={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />)}
+            <div className="fixed top-20 right-4 z-[100] space-y-2">
+                {toasts.map(toast => (
+                    <Toast key={toast.id} toast={toast} onRemove={removeToast} />
+                ))}
             </div>
+
+            {/* Modals */}
+            {bookingModalGuide && <BookingModal guide={bookingModalGuide} onClose={() => setBookingModalGuide(null)} onBook={handleBookGuide} addToast={addToast} />}
+            {stayBookingModalStay && <StayBookingModal stay={stayBookingModalStay} onClose={() => setStayBookingModalStay(null)} onBook={handleBookStay} addToast={addToast} />}
+            {vendorBookingModalVendor && <VendorBookingModal vendor={vendorBookingModalVendor} onClose={() => setVendorBookingModalVendor(null)} onBook={handleBookVendor} addToast={addToast} />}
+            {reviewModalBooking && <ReviewModal booking={reviewModalBooking} onClose={() => setReviewModalBooking(null)} addToast={addToast} />}
+            {isCostModalOpen && <CostEstimationModal estimate={costEstimate} onClose={() => setIsCostModalOpen(false)} />}
+            {isUpgradeModalOpen && <UpgradeModal onClose={() => setIsUpgradeModalOpen(false)} />}
+            {isSOSModalOpen && <SOSModal user={user} onClose={() => setIsSOSModalOpen(false)} />}
+            {isGuideAppModalOpen && <GuideApplicationModal onClose={() => setIsGuideAppModalOpen(false)} addToast={addToast} />}
+            {isLiveTripModalOpen && itinerary && <LiveTripModal itinerary={itinerary} onClose={() => setIsLiveTripModalOpen(false)} />}
+            {verificationItem && <VerificationModal item={verificationItem} onClose={() => setVerificationItem(null)} onUpdateStatus={() => {}} isLoading={false} />}
+            {addItemType && <AddItemModal type={addItemType} onClose={() => setAddItemType(null)} onAdd={() => {}} />}
+            {confirmationModal && <ConfirmationModal isOpen={!!confirmationModal} onClose={() => setConfirmationModal(null)} onConfirm={() => { confirmationModal.onConfirm(); setConfirmationModal(null); }} {...confirmationModal} />}
         </div>
     );
 };

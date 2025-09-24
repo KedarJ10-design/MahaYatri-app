@@ -4,124 +4,144 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MahaYatri</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛰️</text></svg>">
     
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     
+    <!-- Leaflet CSS for Maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-    tailwind.config = {
-        darkMode: 'class',
-        theme: {
-            extend: {
-                colors: {
-                    primary: '#EA580C', // Updated for WCAG AA contrast
-                    secondary: '#FFB800',
-                    accent: '#00C49A',
-                    dark: '#121212',
-                    'dark-light': '#1E1E1E',
-                    'dark-lighter': '#2a2a2a',
-                    light: '#F5F5F5',
-                },
-                fontFamily: {
-                    heading: ['Lora', 'serif'],
-                    body: ['Poppins', 'sans-serif'],
-                },
-                animation: {
-                    'fade-in': 'fadeIn 0.5s ease-in-out',
-                    'fade-in-slow': 'fadeIn 1s ease-in-out',
-                    'slide-up': 'slideUp 0.5s ease-out',
-                    'pulse-subtle': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    'gradient-bg': 'gradient-bg 15s ease infinite',
-                    'pulse-heart': 'pulse-heart 1.5s ease-in-out infinite',
-                    'gentle-sway': 'gentle-sway 3s ease-in-out infinite alternate',
-                    'scale-in': 'scaleIn 0.3s ease-out',
-                    'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
-                    'shimmer': 'shimmer 1.5s infinite linear',
-                },
-                keyframes: {
-                    fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
-                    slideUp: { '0%': { transform: 'translateY(20px)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } },
-                    'gradient-bg': {
-                        '0%': { backgroundPosition: '0% 50%' },
-                        '50%': { backgroundPosition: '100% 50%' },
-                        '100%': { backgroundPosition: '0% 50%' },
-                    },
-                    'pulse-heart': {
-                        '0%, 100%': { transform: 'scale(1)' },
-                        '50%': { transform: 'scale(1.1)' }
-                    },
-                    'gentle-sway': {
-                        'from': { transform: 'rotate(-2deg) translateY(-2px)' },
-                        'to': { transform: 'rotate(2deg) translateY(2px)' }
-                    },
-                    scaleIn: {
-                        '0%': { transform: 'scale(0.95)', opacity: 0 },
-                        '100%': { transform: 'scale(1)', opacity: 1 }
-                    },
-                    fadeInUp: {
-                        '0%': { opacity: 0, transform: 'translateY(20px)' },
-                        '100%': { opacity: 1, transform: 'translateY(0)' }
-                    },
-                    shimmer: {
-                        '0%': { transform: 'translateX(-100%)' },
-                        '100%': { transform: 'translateX(100%)' },
-                    },
-                }
+    <!-- Custom Styles & Tailwind Config -->
+    <style type="text/tailwindcss">
+        @layer base {
+            /* Smooth scrolling for anchor links */
+            html {
+                scroll-behavior: smooth;
+            }
+            body {
+                @apply bg-light dark:bg-dark text-dark dark:text-light;
             }
         }
-    }
-    </script>
-    <style>
-        .no-scroll { overflow: hidden; }
-        .mobile-nav { transform: translateX(-100%); transition: transform 0.3s ease-in-out; }
-        .mobile-nav.open { transform: translateX(0); }
-        /* For LazyImage Component */
-        .lazy-image { transition: opacity 0.5s ease-in-out; }
-        .lazy-image-placeholder { filter: blur(10px); }
-        /* Accessibility utility */
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
+        @layer components {
+            .mobile-nav {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
+            .mobile-nav.open {
+                transform: translateX(0);
+            }
+            .no-scroll {
+                overflow: hidden;
+            }
+            /* Styles for the new LazyImage component */
+            .lazy-image {
+                transition: opacity 0.5s ease-in-out;
+            }
+            .lazy-image-placeholder {
+                filter: blur(10px);
+                transform: scale(1.1);
+            }
         }
-        /* For Leaflet map */
-        .leaflet-container {
-            height: 100%;
-            width: 100%;
+        @layer utilities {
+            .animate-gradient-bg {
+                animation: gradient-animation 10s ease infinite;
+            }
+            .animate-fade-in {
+                animation: fade-in 0.5s ease-in-out forwards;
+            }
+            .animate-slide-up {
+                animation: slide-up 0.4s ease-out forwards;
+            }
+            .animate-pulse-subtle {
+                animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+            /* Shimmer animation for Skeleton Loader */
+            .animate-shimmer {
+                animation: shimmer 1.5s infinite linear;
+            }
+        }
+        @keyframes gradient-animation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse-subtle {
+            50% {
+                opacity: .8;
+                transform: scale(1.02);
+            }
+        }
+        @keyframes shimmer {
+            100% {
+                transform: translateX(100%);
+            }
         }
     </style>
-
-    <script type="importmap">
-    {
-      "imports": {
-        "firebase-functions": "https://aistudiocdn.com/firebase-functions@^6.4.0",
-        "firebase-admin": "https://aistudiocdn.com/firebase-admin@^13.5.0",
-        "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
-        "razorpay": "https://aistudiocdn.com/razorpay@^2.9.6",
-        "cors": "https://aistudiocdn.com/cors@^2.8.5",
-        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
-        "react/": "https://aistudiocdn.com/react@^19.1.1/",
-        "react": "https://aistudiocdn.com/react@^19.1.1",
-        "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-        "firebase/": "https://aistudiocdn.com/firebase@^12.3.0/",
-        "leaflet": "https://aistudiocdn.com/leaflet@^1.9.4",
-        "react-leaflet": "https://aistudiocdn.com/react-leaflet@^4.2.1"
-      }
-    }
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#FF642C',   // Vibrant Orange
+                        secondary: '#FFB03A', // Warm Yellow
+                        accent: '#00A896',    // Teal
+                        dark: '#121212',      // Main dark background
+                        'dark-light': '#1E1E1E', // Lighter dark for cards
+                        'dark-lighter': '#2A2A2A',// Even lighter dark
+                        light: '#F8F9FA',     // Main light background
+                    },
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                        serif: ['Lora', 'serif'],
+                        heading: ['Poppins', 'sans-serif'],
+                    },
+                },
+            },
+        }
     </script>
-    <script type="module" src="/index.tsx"></script>
 </head>
-<body class="bg-light dark:bg-dark">
+<body>
     <div id="root"></div>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    
+    <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.3.0/",
+    "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
+    "react-leaflet": "https://aistudiocdn.com/react-leaflet@^5.0.0",
+    "leaflet": "https://aistudiocdn.com/leaflet@^1.9.4",
+    "zustand/": "https://aistudiocdn.com/zustand@^5.0.8/",
+    "zustand": "https://aistudiocdn.com/zustand@^5.0.8",
+    "razorpay": "https://aistudiocdn.com/razorpay@^2.9.6",
+    "react-hook-form": "https://aistudiocdn.com/react-hook-form@^7.52.1",
+    "cors": "https://aistudiocdn.com/cors@^2.8.5",
+    "vite": "https://aistudiocdn.com/vite@^7.1.7",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.3",
+    "firebase-functions": "https://aistudiocdn.com/firebase-functions@^6.4.0",
+    "firebase-admin": "https://aistudiocdn.com/firebase-admin@^13.5.0"
+  }
+}
+</script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

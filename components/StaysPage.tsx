@@ -1,92 +1,78 @@
 
-
-import React, { useState, useMemo, useEffect } from 'react';
-import { Stay, ToastMessage, StayBooking } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Stay } from '../types';
+import { mockStays } from '../services/mockData';
 import StayCard from './StayCard';
 import Input from './common/Input';
-import StayBookingModal from './StayBookingModal';
 import PriceRangeSlider from './common/PriceRangeSlider';
 
-interface StaysPageProps {
-  stays: Stay[];
-  addToast: (message: string, type: ToastMessage['type']) => void;
-}
+const StaysPage: React.FC<{onBook: (stay: Stay) => void}> = ({ onBook }) => {
+  const [stays, setStays] = useState<Stay[]>(mockStays);
+  const [filters, setFilters] = useState({
+    location: '',
+    type: 'all',
+    maxPrice: 25000,
+  });
 
-const StaysPage: React.FC<StaysPageProps> = ({ stays, addToast }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [maxPrice, setMaxPrice] = useState(0);
-  const [bookingStay, setBookingStay] = useState<Stay | null>(null);
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
-  const priceRange = useMemo(() => {
-    if (stays.length === 0) return { min: 0, max: 30000 };
-    const prices = stays.map(s => s.pricePerNight);
+  const handlePriceChange = (value: number) => {
+    setFilters(prev => ({ ...prev, maxPrice: value }));
+  };
+  
+  const { uniqueLocations, maxPriceValue } = useMemo(() => {
+    const locations = ['all', ...new Set(stays.map(s => s.location))].sort();
+    const max = Math.max(...stays.map(s => s.pricePerNight), 10000);
     return {
-      min: Math.min(...prices),
-      max: Math.max(...prices),
+      uniqueLocations: locations,
+      maxPriceValue: Math.ceil(max / 1000) * 1000
     };
   }, [stays]);
 
-  useEffect(() => {
-    if (maxPrice === 0 && priceRange.max > 0) {
-      setMaxPrice(priceRange.max);
-    }
-  }, [priceRange.max, maxPrice]);
-
   const filteredStays = useMemo(() => {
-    const textFiltered = stays.filter(stay =>
-      stay.verificationStatus === 'verified' &&
-      (stay.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       stay.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       stay.type.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-
-    return textFiltered.filter(stay => stay.pricePerNight <= maxPrice);
-  }, [stays, searchTerm, maxPrice]);
-  
-  const handleBookingSubmit = async (bookingDetails: Omit<StayBooking, 'id' | 'userId' | 'status'>) => {
-    console.log("Stay booking submitted", bookingDetails);
-    addToast("Stay booked successfully!", "success");
-    setBookingStay(null);
-  };
+    return stays.filter(stay => {
+      const locationMatch = filters.location === 'all' || stay.location.toLowerCase().includes(filters.location.toLowerCase());
+      const typeMatch = filters.type === 'all' || stay.type === filters.type;
+      const priceMatch = stay.pricePerNight <= filters.maxPrice;
+      return locationMatch && typeMatch && priceMatch;
+    });
+  }, [stays, filters]);
 
   return (
     <div className="animate-fade-in">
-      <div className="text-center">
-        <h1 className="text-4xl font-extrabold font-heading text-dark dark:text-light mb-2">Find a Place to Stay</h1>
-        <p className="text-lg text-gray-600 dark:text-gray-400">From luxury hotels to cozy homestays.</p>
+      <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg mb-8">
+        <h1 className="text-3xl font-bold font-heading mb-4">Find Your Perfect Stay</h1>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
+            <select name="location" value={filters.location} onChange={handleFilterChange} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light focus:ring-2 focus:ring-primary focus:border-transparent transition">
+              {uniqueLocations.map(loc => <option key={loc} value={loc}>{loc === 'all' ? 'All Locations' : loc}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+            <select name="type" value={filters.type} onChange={handleFilterChange} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light focus:ring-2 focus:ring-primary focus:border-transparent transition">
+              <option value="all">All Types</option>
+              <option value="Hotel">Hotel</option>
+              <option value="Homestay">Homestay</option>
+              <option value="Resort">Resort</option>
+            </select>
+          </div>
+          <PriceRangeSlider label="Max Price per Night" min={1000} max={maxPriceValue} step={500} value={filters.maxPrice} onChange={handlePriceChange} />
+        </div>
       </div>
-      <div className="mt-8 max-w-4xl mx-auto bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg space-y-6">
-        <Input
-          label=""
-          id="stay-search-input"
-          placeholder="Search by name, location, or type (Hotel, Homestay)..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-        />
-        <PriceRangeSlider
-          label="Max Price Per Night"
-          min={priceRange.min}
-          max={priceRange.max}
-          step={500}
-          value={maxPrice}
-          onChange={setMaxPrice}
-        />
-      </div>
-      <ul className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredStays.map(stay => (
-          <li key={stay.id}>
-            <StayCard stay={stay} onBook={setBookingStay} />
-          </li>
+          <StayCard key={stay.id} stay={stay} onBook={onBook} />
         ))}
-      </ul>
-      
-      {bookingStay && (
-        <StayBookingModal 
-          stay={bookingStay} 
-          onClose={() => setBookingStay(null)}
-          onBook={handleBookingSubmit}
-          addToast={addToast}
-        />
+      </div>
+       {filteredStays.length === 0 && (
+        <div className="text-center py-16 col-span-full">
+          <p className="text-xl text-gray-500">No stays found matching your criteria.</p>
+        </div>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import { User, Guide, Booking, BookingStatus, Conversation, DirectMessage, Review, Vendor, Stay, Notification, FriendRequest, CompletedBooking } from '../types';
+import { User, Guide, Booking, BookingStatus, Conversation, DirectMessage, Review, Vendor, Stay, Notification, FriendRequest, CompletedBooking, CostEstimate } from '../types';
 
 const today = new Date();
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
@@ -348,6 +348,26 @@ export const mockBookings: Booking[] = [
     },
 ];
 
+// FIX: Add mockCostEstimate export to be used in App.tsx.
+export const mockCostEstimate: CostEstimate = {
+    accommodation: {
+        amount: 15000,
+        description: "Based on mid-range hotels for 3 nights.",
+    },
+    food: {
+        amount: 8000,
+        description: "A mix of local eateries and mid-range restaurants.",
+    },
+    localTransport: {
+        amount: 4000,
+        description: "Includes rickshaws, taxis, and local buses.",
+    },
+    activities: {
+        amount: 6000,
+        description: "Entry fees for sites and special tours.",
+    },
+};
+
 export const mockConversations: Conversation[] = [
     {
         id: 'conv-1',
@@ -408,6 +428,14 @@ export const otherUsers: User[] = [
     {...mockTouristUser, id: 'user-3', name: 'Sneha Reddy', avatarUrl: 'https://picsum.photos/seed/tourist-woman-2/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false, unlockedGuideIds: [], wishlist: [], followingGuideIds: [], friends: [] },
     {...mockTouristUser, id: 'user-4', name: 'Arjun Mehta', avatarUrl: 'https://picsum.photos/seed/tourist-man-2/200/200', role: 'user', status: 'suspended', redeemedRewardIds: [], hasPendingApplication: false, unlockedGuideIds: [], wishlist: [], followingGuideIds: [], friends: [] },
     {...mockTouristUser, id: 'user-5', name: 'Divya Rao', avatarUrl: 'https://picsum.photos/seed/tourist-woman-3/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: true, unlockedGuideIds: [], wishlist: [], followingGuideIds: [], friends: [] } // This user has a pending application
+];
+
+// FIX: Add mockUsers export to be used in App.tsx and AdminPage.tsx.
+export const mockUsers: User[] = [
+  mockTouristUser,
+  mockGuideUser,
+  mockAdminUser,
+  ...otherUsers,
 ];
 
 export const mockNotifications: Notification[] = [

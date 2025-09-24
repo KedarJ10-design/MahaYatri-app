@@ -540,6 +540,45 @@ export const postAnswer = functions.https.onCall(async (data, context) => {
     return { success: true };
 });
 
+export const sendMessage = functions.https.onCall(async (data, context) => {
+    const userId = ensureAuthenticated(context);
+    const { conversationId, text } = data;
+
+    if (!conversationId || !text) {
+        throw new functions.https.HttpsError("invalid-argument", "A conversationId and text are required to send a message.");
+    }
+
+    const conversationRef = db.collection("conversations").doc(conversationId);
+    const messageRef = db.collection("messages").doc(); // Generate a new an empty doc ref
+
+    return db.runTransaction(async (transaction) => {
+        const conversationDoc = await transaction.get(conversationRef);
+        if (!conversationDoc.exists) {
+            throw new functions.https.HttpsError("not-found", "The specified conversation does not exist.");
+        }
+
+        const conversationData = conversationDoc.data()!;
+        if (userId !== conversationData.userId && userId !== conversationData.guideId) {
+            throw new functions.https.HttpsError("permission-denied", "You are not a participant in this conversation.");
+        }
+
+        const timestamp = Date.now();
+        const newMessage = {
+            conversationId,
+            senderId: userId,
+            text,
+            timestamp,
+        };
+
+        transaction.set(messageRef, newMessage);
+        transaction.update(conversationRef, {
+            lastMessageTimestamp: timestamp,
+        });
+
+        return { success: true, messageId: messageRef.id };
+    });
+});
+
 
 // --- ADMIN FUNCTIONS ---
 export const deleteItem = functions.https.onCall(async (data, context) => {

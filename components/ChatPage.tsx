@@ -1,11 +1,13 @@
 
 
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User, Conversation, DirectMessage, Guide, ToastMessage } from '../types';
 import Button from './common/Button';
 import Spinner from './common/Spinner';
 import { db } from '../services/firebase';
 import { translateText } from '../services/geminiService';
+import LazyImage from './common/LazyImage';
 
 interface ChatPageProps {
   currentUser: User;
@@ -31,7 +33,13 @@ const ConversationListItem: React.FC<{
             onClick={onClick} 
             className={`w-full text-left p-4 rounded-lg flex items-center gap-4 transition-all duration-200 transform hover:scale-[1.02] ${isActive ? 'bg-primary/10 dark:bg-primary/20 scale-[1.02]' : 'hover:bg-gray-100 dark:hover:bg-dark-light'}`}
         >
-            <img src={guide.avatarUrl} alt={guide.name} className="w-14 h-14 rounded-full object-cover" />
+            <LazyImage 
+                src={guide.avatarUrl} 
+                alt={guide.name} 
+                className="w-14 h-14 rounded-full flex-shrink-0"
+                placeholderClassName="rounded-full"
+                sizes="56px"
+            />
             <div className="flex-grow overflow-hidden">
                 <h3 className="font-bold text-dark dark:text-light truncate">{guide.name}</h3>
                 <p className="text-gray-500 dark:text-gray-400 text-sm truncate">{lastMessageText || 'No messages yet'}</p>
@@ -146,7 +154,7 @@ const ConversationView: React.FC<{
                 <button onClick={onBack} className="md:hidden p-2 -ml-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-lighter">
                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                 </button>
-                <img src={guide.avatarUrl} alt={guide.name} className="w-10 h-10 rounded-full" />
+                <LazyImage src={guide.avatarUrl} alt={guide.name} className="w-10 h-10 rounded-full" placeholderClassName="rounded-full" sizes="40px" />
                 <h2 className="font-bold text-lg">{guide.name}</h2>
             </header>
             <div className="flex-1 p-4 overflow-y-auto space-y-4">

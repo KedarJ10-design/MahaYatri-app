@@ -1,4 +1,5 @@
 import React from 'react';
+import LazyImage from './common/LazyImage';
 
 const AboutPage: React.FC = () => {
   return (
@@ -34,17 +35,17 @@ const AboutPage: React.FC = () => {
           <h2 className="text-2xl font-bold font-heading text-primary mb-3">Meet the (Mock) Team</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
             <div className="p-4">
-              <img src="https://picsum.photos/seed/team1/200/200" alt="Founder" className="w-24 h-24 rounded-full mx-auto mb-2 border-4 border-secondary" />
+              <LazyImage src="https://picsum.photos/seed/team1/200/200" alt="Founder" className="w-24 h-24 rounded-full mx-auto mb-2 border-4 border-secondary" placeholderClassName="rounded-full" sizes="96px" />
               <h3 className="font-bold font-heading">Priya Sharma</h3>
               <p className="text-sm text-gray-500">Founder & CEO</p>
             </div>
             <div className="p-4">
-              <img src="https://picsum.photos/seed/team2/200/200" alt="Lead Guide" className="w-24 h-24 rounded-full mx-auto mb-2 border-4 border-secondary" />
+              <LazyImage src="https://picsum.photos/seed/team2/200/200" alt="Lead Guide" className="w-24 h-24 rounded-full mx-auto mb-2 border-4 border-secondary" placeholderClassName="rounded-full" sizes="96px" />
               <h3 className="font-bold font-heading">Rohan Patil</h3>
               <p className="text-sm text-gray-500">Head of Guide Relations</p>
             </div>
              <div className="p-4">
-              <img src="https://picsum.photos/seed/team3/200/200" alt="Tech Lead" className="w-24 h-24 rounded-full mx-auto mb-2 border-4 border-secondary" />
+              <LazyImage src="https://picsum.photos/seed/team3/200/200" alt="Tech Lead" className="w-24 h-24 rounded-full mx-auto mb-2 border-4 border-secondary" placeholderClassName="rounded-full" sizes="96px" />
               <h3 className="font-bold font-heading">Aisha Khan</h3>
               <p className="text-sm text-gray-500">Lead Engineer</p>
             </div>

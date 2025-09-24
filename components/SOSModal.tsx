@@ -1,95 +1,73 @@
+
 import React, { useState, useEffect } from 'react';
+import { User } from '../types';
 import Button from './common/Button';
 import Spinner from './common/Spinner';
 
 interface SOSModalProps {
+  user: User;
   onClose: () => void;
-  emergencyContact: { name: string; phone: string };
 }
 
-const SOSModal: React.FC<SOSModalProps> = ({ onClose, emergencyContact }) => {
-  const [location, setLocation] = useState<GeolocationCoordinates | null>(null);
+const SOSModal: React.FC<SOSModalProps> = ({ user, onClose }) => {
+  const [isSending, setIsSending] = useState(false);
+  const [location, setLocation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLocation(position.coords);
-        setLoading(false);
+        const { latitude, longitude } = position.coords;
+        setLocation(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
       },
-      (err) => {
-        setError(`Location Error: ${err.message}`);
-        setLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      (geoError) => {
+        setError("Could not get your location. Please ensure location services are enabled.");
+      }
     );
   }, []);
-  
-  const locationString = location ? `${location.latitude}, ${location.longitude}` : '';
-  const googleMapsUrl = location ? `https://www.google.com/maps?q=${location.latitude},${location.longitude}` : '';
-  const smsBody = `Emergency! I need help. My current location is: ${locationString}. Map: ${googleMapsUrl}`;
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(smsBody);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  const renderContent = () => {
-    if (loading) {
-      return <div className="text-center"><Spinner /> <p className="mt-4">Getting your location...</p></div>;
-    }
-    if (error) {
-      return <div className="text-center text-red-500 bg-red-100 dark:bg-red-900/50 p-4 rounded-lg">{error}</div>;
-    }
-    if (location) {
-      return (
-        <div className="space-y-4 text-center">
-            <p className="text-lg">Your current location is:</p>
-            <div className="bg-light dark:bg-dark p-4 rounded-lg font-mono text-lg">
-                <p>Lat: {location.latitude.toFixed(6)}</p>
-                <p>Lon: {location.longitude.toFixed(6)}</p>
-            </div>
-            <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">View on Google Maps</a>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                <a href={`sms:${emergencyContact.phone}?&body=${encodeURIComponent(smsBody)}`}>
-                    <Button className="w-full bg-red-600 hover:bg-red-700 focus:ring-red-500">
-                        Share via SMS
-                    </Button>
-                </a>
-                <Button variant="outline" onClick={handleCopy} className="w-full">
-                    {copied ? 'Copied!' : 'Copy Location'}
-                </Button>
-            </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 pt-2">Sharing will send your location to your emergency contact: {emergencyContact.name} ({emergencyContact.phone}).</p>
-        </div>
-      );
-    }
-    return null;
-  }
+  const handleSendSOS = () => {
+    setIsSending(true);
+    // Simulate sending SOS
+    setTimeout(() => {
+      alert(`SOS sent to ${user.emergencyContact.name} with location: ${location}`);
+      setIsSending(false);
+      onClose();
+    }, 2000);
+  };
 
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="sos-title"
-    >
-      <div
-        className="bg-white dark:bg-dark-light rounded-2xl shadow-2xl w-full max-w-md animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h2 id="sos-title" className="text-2xl font-bold font-heading text-red-600">Emergency SOS</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-lighter" aria-label="Close modal">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
+    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-dark-light rounded-2xl shadow-2xl w-full max-w-md text-center p-8" onClick={(e) => e.stopPropagation()}>
+        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
         </div>
-        <div className="p-8">
-            {renderContent()}
+        <h2 className="text-3xl font-extrabold text-red-600 mt-4">Confirm Emergency SOS</h2>
+        <p className="text-gray-600 dark:text-gray-400 mt-4">
+          This will immediately send an SMS with your current location to your emergency contact:
+        </p>
+        <div className="my-4 p-4 bg-light dark:bg-dark rounded-lg">
+            <p className="font-bold text-lg">{user.emergencyContact.name}</p>
+            <p className="text-gray-500">{user.emergencyContact.phone}</p>
+        </div>
+        <div className="h-6">
+            {location && <p className="text-sm text-gray-500">Your location: {location}</p>}
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            {!location && !error && <Spinner className="w-4 h-4 mx-auto" />}
+        </div>
+        <div className="mt-6 flex flex-col gap-3">
+          <Button 
+            variant="danger" 
+            className="w-full text-lg py-3" 
+            onClick={handleSendSOS}
+            loading={isSending}
+            disabled={!location || isSending}
+          >
+            Send SOS Now
+          </Button>
+          <Button variant="outline" className="w-full" onClick={onClose} disabled={isSending}>
+            Cancel
+          </Button>
         </div>
       </div>
     </div>

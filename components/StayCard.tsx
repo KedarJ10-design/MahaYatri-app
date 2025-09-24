@@ -3,6 +3,7 @@ import { Stay } from '../types';
 import Button from './common/Button';
 import StarRating from './StarRating';
 import Badge from './Badge';
+import LazyImage from './common/LazyImage';
 
 interface StayCardProps {
   stay: Stay;
@@ -13,7 +14,12 @@ const StayCard: React.FC<StayCardProps> = ({ stay, onBook }) => {
   return (
     <div className="bg-white dark:bg-dark-light rounded-xl shadow-md overflow-hidden flex flex-col transform hover:-translate-y-1 transition-all duration-300 group hover:shadow-xl dark:hover:shadow-primary/20">
       <div className="relative overflow-hidden">
-        <img className="h-48 w-full object-cover group-hover:scale-105 transition-transform duration-300 ease-in-out" src={stay.avatarUrl} alt={stay.name} />
+        <LazyImage 
+          src={stay.avatarUrl} 
+          alt={stay.name} 
+          className="h-48 w-full group-hover:scale-105 transition-transform duration-300 ease-in-out"
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+        />
         <div className="absolute top-2 right-2"><Badge color="green">{stay.type}</Badge></div>
       </div>
       <div className="p-4 flex-grow flex flex-col">

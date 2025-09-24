@@ -141,7 +141,7 @@ export const useRazorpay = () => {
 
                 const rzp = new window.Razorpay(razorpayOptions);
                 rzp.open();
-            } catch (err) {
+            } catch (err: unknown) {
                 reject(err instanceof Error ? err : new Error('An unexpected error occurred during checkout.'));
             }
         });

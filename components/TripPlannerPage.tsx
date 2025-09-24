@@ -1,8 +1,7 @@
-
-
 import React, { useState } from 'react';
 import { PlaceSuggestion, DetailedItinerary, User } from '../types';
 import { generateCustomItinerary } from '../services/geminiService';
+import { saveItinerary } from '../services/db';
 import Input from './common/Input';
 import Button from './common/Button';
 import CountdownLoader from './common/CountdownLoader';
@@ -61,10 +60,16 @@ const TripPlannerPage: React.FC<TripPlannerPageProps> = ({ onItineraryGenerated,
     setLoading(true);
     setError(null);
     try {
-      const itinerary = await generateCustomItinerary(params);
+      let itinerary = await generateCustomItinerary(params);
+      // Add a mock map image URL for offline caching
+      const destinationSlug = params.mustVisit[0].destination.toLowerCase().replace(/\s+/g, '-');
+      itinerary.mapImageUrl = `https://picsum.photos/seed/${destinationSlug}-map/800/600`;
+      
+      await saveItinerary(itinerary); // Save to IndexedDB for offline access
       onItineraryGenerated(itinerary);
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred while planning your trip.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred while planning your trip.';
+      setError(message);
     } finally {
       setLoading(false);
     }

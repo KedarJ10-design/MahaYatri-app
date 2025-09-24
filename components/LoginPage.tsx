@@ -27,20 +27,51 @@ const DemoUserCard: React.FC<{
 const LoginPage: React.FC = () => {
   const [isLoginView, setIsLoginView] = useState(true);
   const [name, setName] = useState('');
-  const [email, setEmail] =useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   
   const { signIn, signUp, loading, error, setError } = useAuth();
+
+  const validateEmail = (emailToValidate: string): boolean => {
+    if (!emailToValidate) {
+      setEmailError('Email address is required.');
+      return false;
+    }
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!regex.test(emailToValidate)) {
+      setEmailError('Please enter a valid email address.');
+      return false;
+    }
+    setEmailError(null);
+    return true;
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEmail = e.target.value;
+    setEmail(newEmail);
+    if (newEmail) {
+      validateEmail(newEmail);
+    } else {
+      setEmailError(null);
+    }
+  };
 
   const handleDemoSelect = (demoEmail: string) => {
     setEmail(demoEmail);
     setPassword('password123');
+    setEmailError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    // Final validation before submitting
+    if (!validateEmail(email)) {
+      return;
+    }
     try {
       if (isLoginView) {
         await signIn(email, password, rememberMe);
@@ -88,7 +119,20 @@ const LoginPage: React.FC = () => {
                 {!isLoginView && (
                     <Input label="Full Name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Priya Sharma" required />
                 )}
-                <Input label="Email Address" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
+                <div>
+                  <Input 
+                    label="Email Address" 
+                    type="email" 
+                    value={email} 
+                    onChange={handleEmailChange} 
+                    onBlur={() => validateEmail(email)}
+                    placeholder="you@example.com" 
+                    required 
+                    aria-invalid={!!emailError}
+                    aria-describedby="email-error"
+                  />
+                  {emailError && <p id="email-error" className="text-sm text-red-500 mt-1 animate-fade-in">{emailError}</p>}
+                </div>
                 
                 <div>
                   <label htmlFor="password-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -153,7 +197,7 @@ const LoginPage: React.FC = () => {
 
              <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-6">
                 {isLoginView ? "Don't have an account?" : "Already have an account?"}
-                <button onClick={() => { setIsLoginView(!isLoginView); setEmail(''); setPassword(''); setName(''); setError(null); }} className="font-semibold text-primary hover:underline ml-1">
+                <button onClick={() => { setIsLoginView(!isLoginView); setEmail(''); setPassword(''); setName(''); setError(null); setEmailError(null); }} className="font-semibold text-primary hover:underline ml-1">
                     {isLoginView ? 'Sign Up' : 'Sign In'}
                 </button>
             </p>

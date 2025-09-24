@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { User, Guide, Booking, BookingStatus, ToastMessage } from '../types';
+import { User, Guide, Booking, BookingStatus, ToastMessage, AvailabilityStatus } from '../types';
 import EarningsChart from './EarningsChart';
 import AvailabilityCalendar from './AvailabilityCalendar';
 import Badge from './Badge';
@@ -10,7 +10,7 @@ import { db } from '../services/firebase';
 interface GuideDashboardPageProps {
   guideUser: User;
   allUsers: User[];
-  onUpdateAvailability: (guideId: string, newAvailability: Record<string, boolean>) => Promise<void>;
+  onUpdateAvailability: (guideId: string, newAvailability: Record<string, AvailabilityStatus | undefined>) => Promise<void>;
   onUpdateBookingStatus: (bookingId: string, status: BookingStatus) => Promise<void>;
   addToast: (message: string, type: ToastMessage['type']) => void;
 }

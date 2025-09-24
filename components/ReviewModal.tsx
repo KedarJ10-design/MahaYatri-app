@@ -1,107 +1,92 @@
+
 import React, { useState } from 'react';
-import { Booking, Review, Guide } from '../types';
+import { Booking } from '../types';
 import Button from './common/Button';
+import StarRating from './StarRating'; // Using a display component, but will manage state here
 
 interface ReviewModalProps {
   booking: Booking;
-  guides: Guide[];
   onClose: () => void;
-  onSubmit: (review: Omit<Review, 'id' | 'userId' | 'createdAt'>) => Promise<void>;
+  addToast: (message: string, type: 'success' | 'error') => void;
 }
 
-const StarInput: React.FC<{ rating: number; setRating: (rating: number) => void }> = ({ rating, setRating }) => {
-    const [hoverRating, setHoverRating] = useState(0);
+const StarInput: React.FC<{ rating: number, setRating: (r: number) => void }> = ({ rating, setRating }) => {
     return (
-        <div className="flex justify-center" onMouseLeave={() => setHoverRating(0)}>
+        <div className="flex items-center justify-center gap-1">
             {[...Array(5)].map((_, index) => {
-                const starValue = index + 1;
+                const ratingValue = index + 1;
                 return (
                     <button
                         type="button"
-                        key={starValue}
-                        className="text-4xl transition-transform duration-200 hover:scale-125"
-                        onClick={() => setRating(starValue)}
-                        onMouseEnter={() => setHoverRating(starValue)}
+                        key={ratingValue}
+                        onClick={() => setRating(ratingValue)}
+                        className="text-4xl transition-transform transform hover:scale-125"
+                        aria-label={`Rate ${ratingValue} stars`}
                     >
-                        <svg
-                            className={`w-10 h-10 ${starValue <= (hoverRating || rating) ? 'text-secondary' : 'text-gray-300 dark:text-gray-600'}`}
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                        >
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
+                        {ratingValue <= rating ? '⭐' : '☆'}
                     </button>
                 );
             })}
         </div>
     );
-};
+}
 
-const ReviewModal: React.FC<ReviewModalProps> = ({ booking, guides, onClose, onSubmit }) => {
-  const [rating, setRating] = useState(0);
+const ReviewModal: React.FC<ReviewModalProps> = ({ booking, onClose, addToast }) => {
+  const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const guide = guides.find(g => g.id === booking.guideId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (rating === 0 || isSubmitting) return;
-    
     setIsSubmitting(true);
     try {
-        await onSubmit({
-          guideId: booking.guideId,
-          rating,
-          comment,
-        });
+      // Here you would call a function to submit the review to your backend
+      console.log({
+        bookingId: booking.id,
+        guideId: booking.guideId,
+        rating,
+        comment,
+      });
+      // await submitReviewFunction({ ... });
+      addToast('Thank you for your review!', 'success');
+      onClose();
+    } catch (error) {
+      addToast('Failed to submit review.', 'error');
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (!guide) return null;
-
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="review-title"
-    >
-      <div
-        className="bg-white dark:bg-dark-light rounded-2xl shadow-2xl w-full max-w-lg animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 text-center">
-          <h2 id="review-title" className="text-2xl font-bold font-heading text-dark dark:text-light">Rate your trip with {guide.name}</h2>
-          <p className="text-gray-500 dark:text-gray-400">Your feedback helps other travelers.</p>
+    <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-dark-light rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 border-b text-center">
+          <h2 className="text-2xl font-bold">Leave a Review</h2>
+          <p className="text-gray-500">How was your tour on {new Date(booking.startDate).toLocaleDateString()}?</p>
         </div>
-        
         <form onSubmit={handleSubmit}>
-            <div className="p-8 space-y-6">
-                <div>
-                    <label className="block text-center text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Your Rating</label>
-                    <StarInput rating={rating} setRating={setRating} />
-                </div>
-                 <div>
-                    <label htmlFor="comment" className="block text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Your Review</label>
-                    <textarea
-                        id="comment"
-                        rows={5}
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Share your experience..."
-                        className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light focus:ring-2 focus:ring-primary focus:border-transparent transition"
-                    />
-                </div>
+          <div className="p-6 space-y-6">
+            <div>
+              <label className="block text-center text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Your Rating</label>
+              <StarInput rating={rating} setRating={setRating} />
             </div>
-            <div className="p-6 bg-gray-50 dark:bg-dark rounded-b-2xl flex justify-end items-center gap-4">
-                <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
-                <Button type="submit" disabled={rating === 0 || isSubmitting} loading={isSubmitting}>Submit Review</Button>
+            <div>
+              <label htmlFor="comment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Your Comments (Optional)</label>
+              <textarea
+                id="comment"
+                rows={4}
+                className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light focus:ring-2 focus:ring-primary"
+                placeholder="Share your experience..."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+              />
             </div>
+          </div>
+          <div className="p-4 bg-gray-50 dark:bg-dark rounded-b-2xl flex justify-end gap-4">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" loading={isSubmitting}>Submit Review</Button>
+          </div>
         </form>
-
       </div>
     </div>
   );

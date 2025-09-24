@@ -1,25 +1,27 @@
-// FIX: Removed unnecessary import of `Page` from `./App` which was causing a circular dependency.
-// The `Page` enum is defined in this file and exported, so it should not be imported.
+import React from 'react';
 
 export enum Page {
-  Home = 'HOME',
-  Search = 'SEARCH',
-  TripPlanner = 'TRIP_PLANNER',
-  Profile = 'PROFILE', // Tourist Dashboard
-  Explore = 'EXPLORE',
-  Chat = 'CHAT',
-  Itinerary = 'ITINERARY',
-  Admin = 'ADMIN',
-  GuideDashboard = 'GUIDE_DASHBOARD',
-  About = 'ABOUT',
-  Contact = 'CONTACT',
-  PrivacyPolicy = 'PRIVACY_POLICY',
-  Vendors = 'VENDORS',
-  Stays = 'STAYS',
-  FAQ = 'FAQ',
+    Home = 'HOME',
+    Search = 'SEARCH',
+    TripPlanner = 'TRIP_PLANNER',
+    Itinerary = 'ITINERARY',
+    Profile = 'PROFILE',
+    Explore = 'EXPLORE',
+    Chat = 'CHAT',
+    Admin = 'ADMIN',
+    GuideDashboard = 'GUIDE_DASHBOARD',
+    About = 'ABOUT',
+    Contact = 'CONTACT',
+    PrivacyPolicy = 'PRIVACY_POLICY',
+    Stays = 'STAYS',
+    Vendors = 'VENDORS',
+    FAQ = 'FAQ',
 }
 
 export type UserRole = 'user' | 'guide' | 'admin';
+
+// A convention for Firestore Timestamps serialized to strings.
+type FirestoreTimestampString = string;
 
 export interface Verifiable {
   id: string;
@@ -45,10 +47,14 @@ export interface User {
   unlockedGuideIds: string[];
   role: UserRole;
   redeemedRewardIds: string[];
-  status?: 'active' | 'suspended';
-  hasPendingApplication?: boolean;
-  wishlist?: PlaceSuggestion[];
+  status: 'active' | 'suspended';
+  hasPendingApplication: boolean;
+  wishlist: PlaceSuggestion[];
+  followingGuideIds: string[];
+  friends: string[];
 }
+
+export type AvailabilityStatus = 'unavailable_morning' | 'unavailable_afternoon' | 'unavailable_full';
 
 export interface Guide extends Verifiable {
   rating: number;
@@ -62,7 +68,12 @@ export interface Guide extends Verifiable {
     email: string;
   };
   contactUnlockPrice: number;
-  availability?: Record<string, boolean>; // YYYY-MM-DD -> true/false
+  availability: Record<string, AvailabilityStatus>; // YYYY-MM-DD -> status
+  followersCount: number;
+  coordinates: {
+      lat: number;
+      lng: number;
+  };
 }
 
 export interface Vendor extends Verifiable {
@@ -71,7 +82,7 @@ export interface Vendor extends Verifiable {
   rating: number;
   reviewCount: number;
   priceRange: '$' | '$$' | '$$$';
-  availability?: Record<string, boolean>; // YYYY-MM-DD -> true/false
+  availability: Record<string, boolean>; // YYYY-MM-DD -> true/false
 }
 
 export interface Stay extends Verifiable {
@@ -80,7 +91,7 @@ export interface Stay extends Verifiable {
     reviewCount: number;
     pricePerNight: number;
     amenities: string[];
-    availability?: Record<string, boolean>; // YYYY-MM-DD -> true/false
+    availability: Record<string, boolean>; // YYYY-MM-DD -> true/false
 }
 
 export interface ItineraryDay {
@@ -102,18 +113,31 @@ export enum BookingStatus {
   Cancelled = 'CANCELLED',
 }
 
-export interface Booking {
+// --- Refactored Booking Type ---
+// Base interface with common properties for all booking types.
+interface BaseBooking {
   id: string;
   userId: string;
   guideId: string;
   startDate: string;
-  endDate:string;
+  endDate: string;
   guests: number;
   totalPrice: number;
-  status: BookingStatus;
   pointsEarned: number;
-  hasBeenReviewed?: boolean;
 }
+
+// Discriminated union based on status for improved type safety.
+export type PendingBooking = BaseBooking & { status: BookingStatus.Pending; };
+export type ConfirmedBooking = BaseBooking & { status: BookingStatus.Confirmed; };
+export type CancelledBooking = BaseBooking & { status: BookingStatus.Cancelled; };
+export type CompletedBooking = BaseBooking & {
+  status: BookingStatus.Completed;
+  hasBeenReviewed: boolean; // This is now a required field for completed bookings.
+};
+
+// The final Booking type is a union of all possible states.
+export type Booking = PendingBooking | ConfirmedBooking | CompletedBooking | CancelledBooking;
+// ---------------------------------
 
 export interface StayBooking {
   id: string;
@@ -163,8 +187,7 @@ export interface Achievement {
   id: string;
   title: string;
   description: string;
-  // FIX: Changed type from React.ReactNode to string to remove React dependency.
-  icon: string;
+  icon: React.ReactNode;
   isUnlocked: boolean;
 }
 
@@ -180,8 +203,7 @@ export interface Reward {
     title: string;
     description: string;
     pointsRequired: number;
-    // FIX: Changed type from React.ReactNode to string to remove React dependency.
-    icon: string;
+    icon: React.ReactNode;
 }
 
 // From Final Prompt - Hardened Schemas
@@ -192,16 +214,16 @@ export interface Payment {
   amount: number;
   currency: string;
   status: 'created' | 'authorized' | 'captured' | 'failed';
-  gatewayResponse: any;
-  createdAt: any; // Firestore Timestamp
+  gatewayResponse: Record<string, unknown>; // Safer than 'any'
+  createdAt: FirestoreTimestampString;
 }
 
 export interface GuideAccess {
   id: string;
   userRef: string; // doc path to user
   guideRef: string; // doc path to guide
-  unlockedAt: any; // Firestore Timestamp
-  expiresAt?: any; // Firestore Timestamp
+  unlockedAt: FirestoreTimestampString;
+  expiresAt?: FirestoreTimestampString;
   paymentRef: string; // doc path to payment
 }
 
@@ -265,6 +287,7 @@ export interface DetailedItinerary {
     summary: string;
     days: ItineraryDayDetailed[];
     total_estimated_cost: number;
+    mapImageUrl?: string; // For offline map caching
 }
 
 // New types for UI enhancements
@@ -280,4 +303,26 @@ export interface Notification {
   read: boolean;
   type: 'booking' | 'message' | 'system';
   timestamp: number;
+}
+
+// New types for Friend System
+export type FriendRequestStatus = 'pending' | 'accepted' | 'declined';
+
+export interface FriendRequest {
+    id: string;
+    fromUserId: string;
+    toUserId: string;
+    status: FriendRequestStatus;
+    createdAt: FirestoreTimestampString;
+}
+
+// New type for Q&A System
+export interface Question {
+    id: string;
+    guideId: string;
+    userId: string; // ID of the user who asked
+    questionText: string;
+    answerText?: string; // The guide's answer
+    createdAt: FirestoreTimestampString;
+    answeredAt?: FirestoreTimestampString;
 }

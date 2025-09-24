@@ -6,6 +6,7 @@ import Button from './common/Button';
 import Badge from './Badge';
 import { db } from '../services/firebase';
 import ConfirmationModal from './common/ConfirmationModal';
+import LazyImage from './common/LazyImage';
 
 type ItemType = 'guide' | 'vendor' | 'stay' | 'user';
 
@@ -156,7 +157,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, guides, vendors, stays, on
                     {users.map(user => (
                         <div key={user.id} className="p-4 bg-light dark:bg-dark rounded-lg flex flex-col sm:flex-row justify-between sm:items-center gap-4 hover:bg-gray-100 dark:hover:bg-dark-lighter/70 transition-all">
                             <div className="flex items-center gap-4 flex-grow">
-                                <img src={user.avatarUrl} alt={user.name} className="w-12 h-12 rounded-full" />
+                                <LazyImage 
+                                    src={user.avatarUrl} 
+                                    alt={user.name} 
+                                    className="w-12 h-12 rounded-full flex-shrink-0"
+                                    placeholderClassName="rounded-full"
+                                    sizes="48px"
+                                />
                                 <div className="flex-grow">
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <p className="font-bold text-lg">{user.name}</p>

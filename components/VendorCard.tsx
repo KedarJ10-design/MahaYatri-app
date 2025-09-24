@@ -4,6 +4,7 @@ import Button from './common/Button';
 import StarRating from './StarRating';
 import Badge from './Badge';
 import { priceRangeMap } from './VendorsPage';
+import LazyImage from './common/LazyImage';
 
 interface VendorCardProps {
   vendor: Vendor;
@@ -16,7 +17,12 @@ const VendorCard: React.FC<VendorCardProps> = ({ vendor, onBook }) => {
   return (
     <div className="bg-white dark:bg-dark-light rounded-xl shadow-md overflow-hidden flex flex-col transform hover:-translate-y-1 transition-all duration-300 group hover:shadow-xl dark:hover:shadow-primary/20">
       <div className="relative overflow-hidden">
-        <img className="h-48 w-full object-cover group-hover:scale-105 transition-transform duration-300 ease-in-out" src={vendor.avatarUrl} alt={vendor.name} />
+        <LazyImage 
+          src={vendor.avatarUrl} 
+          alt={vendor.name} 
+          className="h-48 w-full group-hover:scale-105 transition-transform duration-300 ease-in-out"
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+        />
         <div className="absolute top-2 right-2"><Badge color={vendor.type === 'Restaurant' ? 'blue' : 'yellow'}>{vendor.type}</Badge></div>
       </div>
       <div className="p-4 flex-grow flex flex-col">

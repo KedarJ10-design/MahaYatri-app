@@ -2,6 +2,7 @@ import React from 'react';
 import { DetailedItinerary, ItineraryDayDetailed, ItinerarySlot, TravelInfo, User } from '../types';
 import Button from './common/Button';
 import Badge from './Badge';
+import LazyImage from './common/LazyImage';
 
 interface ItineraryPageProps {
   itinerary: DetailedItinerary;
@@ -104,6 +105,19 @@ const ItineraryPage: React.FC<ItineraryPageProps> = ({ itinerary, onBack, user, 
                 )}
              </div>
         </div>
+        
+        {itinerary.mapImageUrl && (
+            <div className="mb-12">
+                <h2 className="text-2xl font-bold font-heading mb-4 text-center">Destination Overview</h2>
+                <LazyImage 
+                    src={itinerary.mapImageUrl}
+                    alt={`Map of ${itinerary.days[0].slots[0].place.name}`}
+                    className="w-full h-64 md:h-96 rounded-2xl shadow-lg object-cover"
+                    placeholderClassName="rounded-2xl"
+                    sizes="(max-width: 768px) 100vw, 896px"
+                />
+            </div>
+        )}
         
         <div className="space-y-12">
             {itinerary.days.map(day => <DayTimeline key={day.day} day={day} />)}

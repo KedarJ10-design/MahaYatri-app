@@ -1,17 +1,41 @@
+// FIX: Define types for Vite environment variables to resolve TypeScript errors
+// when `vite/client` types are not available in the compilation context.
+interface ImportMetaEnv {
+    readonly VITE_FIREBASE_API_KEY: string;
+    readonly VITE_FIREBASE_AUTH_DOMAIN: string;
+    readonly VITE_FIREBASE_PROJECT_ID: string;
+    readonly VITE_FIREBASE_STORAGE_BUCKET: string;
+    readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string;
+    readonly VITE_FIREBASE_APP_ID: string;
+}
+
+// FIX: Augment the global ImportMeta type to include the `env` property.
+// This is necessary for TypeScript to recognize `import.meta.env`.
+declare global {
+    interface ImportMeta {
+        readonly env: ImportMetaEnv;
+    }
+}
+
 // Use the v8 compatibility layer (compat), which provides the v8 namespaced API.
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 import 'firebase/compat/functions';
 
-// Your web app's Firebase configuration
+// Safely access environment variables, providing an empty object as a fallback.
+// This prevents runtime errors if the script is run in an environment where
+// Vite's environment variables are not injected.
+const env = ((import.meta && import.meta.env) ? import.meta.env : {}) as Partial<ImportMetaEnv>;
+
+// Your web app's Firebase configuration is now loaded from environment variables
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY", // Replace with your actual Firebase config
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: env.VITE_FIREBASE_API_KEY,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: env.VITE_FIREBASE_APP_ID,
 };
 
 let auth: firebase.auth.Auth | null = null;
@@ -22,8 +46,8 @@ export let firebaseInitializationError: string | null = null;
 // Initialize Firebase only once
 if (!firebase.apps.length) {
   // A simple check for placeholder values
-  if (firebaseConfig.apiKey.startsWith("YOUR_")) {
-      firebaseInitializationError = "Firebase configuration is missing. The app will run in offline/mock mode. Please update services/firebase.ts with your project credentials.";
+  if (!firebaseConfig.apiKey || String(firebaseConfig.apiKey).startsWith("VITE_")) {
+      firebaseInitializationError = "Firebase configuration is missing. The app will run in offline/mock mode. Please create a .env.local file with your project credentials.";
       console.warn(firebaseInitializationError);
   } else {
     try {

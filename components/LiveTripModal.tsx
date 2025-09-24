@@ -1,7 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { DetailedItinerary } from '../types';
 import Button from './common/Button';
-import Spinner from './common/Spinner';
 
 interface LiveTripModalProps {
   itinerary: DetailedItinerary;
@@ -9,72 +9,74 @@ interface LiveTripModalProps {
 }
 
 const LiveTripModal: React.FC<LiveTripModalProps> = ({ itinerary, onClose }) => {
-  const [location, setLocation] = useState<GeolocationCoordinates | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [currentSlotIndex, setCurrentSlotIndex] = useState(0);
+  const [currentDayIndex, setCurrentDayIndex] = useState(0);
 
+  const allSlots = itinerary.days.flatMap(day => day.slots.map(slot => ({ ...slot, day: day.day })));
+  const currentSlot = allSlots[currentSlotIndex];
+  
+  // This is a mock progression. In a real app, this would be driven by time or GPS.
   useEffect(() => {
-    const geoId = navigator.geolocation.watchPosition(
-      (position) => {
-        setLocation(position.coords);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        setError(`Location Error: ${err.message}`);
-        setLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
-    return () => navigator.geolocation.clearWatch(geoId);
-  }, []);
+    const interval = setInterval(() => {
+      setCurrentSlotIndex(prev => (prev + 1) % allSlots.length);
+    }, 30000); // Advance every 30 seconds for demo
+    return () => clearInterval(interval);
+  }, [allSlots.length]);
 
-  // Find the next upcoming activity
-  const nextStop = itinerary.days.flatMap(d => d.slots).find(s => s.place.name); // Simplified for demo
+  if (!currentSlot) {
+    return null; // Should not happen if itinerary exists
+  }
 
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex justify-center items-center p-4 animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white dark:bg-dark-light rounded-2xl shadow-2xl w-full max-w-2xl animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h2 className="text-2xl font-bold font-heading">Live Trip Tracking</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-lighter" aria-label="Close modal">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
+    <div className="fixed inset-0 bg-black bg-opacity-60 z-[60] flex justify-center items-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-dark-light rounded-2xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+        <div className="p-6 border-b bg-primary/10 rounded-t-2xl">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Live Trip in Progress</h2>
+            <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+          </div>
+          <p className="text-primary font-semibold">Day {currentSlot.day} of {itinerary.days.length}</p>
         </div>
         
-        <div className="p-4 md:p-8">
-            <div className="relative w-full aspect-[4/3] bg-gray-200 dark:bg-dark rounded-lg overflow-hidden">
-                <img src="https://picsum.photos/seed/map-view/800/600" alt="Map View" className="w-full h-full object-cover" />
-                {/* Mock location markers */}
-                <div className="absolute top-1/2 left-1/3 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                    <div className="w-4 h-4 bg-blue-500 rounded-full ring-4 ring-white/50 animate-pulse"></div>
-                    <span className="text-xs font-bold bg-white/80 dark:bg-dark/80 px-2 py-1 rounded-md mt-2 block">You are here</span>
-                </div>
-                 {nextStop && (
-                    <div className="absolute top-1/3 right-1/4 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                         <div className="w-4 h-4 bg-primary rounded-full ring-4 ring-white/50"></div>
-                        <span className="text-xs font-bold bg-white/80 dark:bg-dark/80 px-2 py-1 rounded-md mt-2 block">Next: {nextStop.place.name}</span>
-                    </div>
-                )}
+        <div className="p-6">
+            <div className="text-center mb-6">
+                <p className="text-lg text-gray-500 dark:text-gray-400">Up Next ({currentSlot.timeWindow})</p>
+                <h3 className="text-3xl font-bold font-heading mt-1">{currentSlot.place.name}</h3>
+                <p className="mt-2 text-xl">{currentSlot.activity}</p>
             </div>
             
-            <div className="mt-6 p-4 bg-light dark:bg-dark rounded-lg">
-                {loading && <div className="flex items-center gap-2"><Spinner className="w-5 h-5" /><span>Acquiring GPS signal...</span></div>}
-                {error && <p className="text-red-500 font-semibold">{error}</p>}
-                {location && (
-                    <div className="text-center font-mono text-sm">
-                        Lat: {location.latitude.toFixed(6)} | Lon: {location.longitude.toFixed(6)} | Accuracy: {location.accuracy.toFixed(0)}m
+            <div className="p-4 bg-light dark:bg-dark rounded-lg">
+                <h4 className="font-semibold mb-2">Travel Info</h4>
+                {currentSlot.travel.duration_min > 0 ? (
+                    <div className="flex justify-around text-center">
+                        <div>
+                            <p className="text-xs text-gray-500">From</p>
+                            <p className="font-medium">{currentSlot.travel.from}</p>
+                        </div>
+                        <div className="flex items-center text-primary">
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500">To</p>
+                            <p className="font-medium">{currentSlot.travel.to}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500">ETA</p>
+                            <p className="font-medium">~{currentSlot.travel.duration_min} min</p>
+                        </div>
                     </div>
+                ) : (
+                    <p className="text-gray-500 dark:text-gray-400">You've arrived at your destination.</p>
                 )}
             </div>
         </div>
 
+        <div className="p-4 bg-gray-50 dark:bg-dark rounded-b-2xl flex justify-center">
+            <Button variant="danger" className="w-full text-lg py-3">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                Emergency SOS
+            </Button>
+        </div>
       </div>
     </div>
   );

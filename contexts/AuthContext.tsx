@@ -145,8 +145,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await auth.setPersistence(rememberMe ? browserLocalPersistence : browserSessionPersistence);
       await auth.signInWithEmailAndPassword(email, password);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred during sign-in.';
+      setError(message);
       setLoading(false);
       throw err;
     }
@@ -179,8 +180,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await db.collection('users').doc(firebaseUser.uid).set(newUserProfile);
       // The real-time listener will now set the user state.
 
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred during sign-up.';
+      setError(message);
       setLoading(false);
       throw err;
     }
@@ -198,8 +200,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else if (auth) {
         await auth.signOut();
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred during sign-out.';
+      setError(message);
       throw err;
     } finally {
       setLoading(false);

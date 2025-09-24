@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Chat } from '@google/genai';
-import { ai } from '../services/geminiService';
+import { functions } from '../services/firebase';
 import { ChatMessage, User } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,8 +8,7 @@ const Chatbot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isAiAvailable, setIsAiAvailable] = useState(false);
-  const chatRef = useRef<Chat | null>(null);
+  const [isAvailable, setIsAvailable] = useState(!!functions);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   
@@ -20,46 +18,31 @@ const Chatbot: React.FC = () => {
 
   useEffect(scrollToBottom, [messages]);
   
-  const getSystemInstruction = (currentUser: User | null): string => {
-      if (!currentUser) {
-          return "You are 'MahaYatri Guide', a friendly and enthusiastic AI travel assistant for exploring Maharashtra, India. Your goal is to help users discover places, plan trips, and learn about the local culture. Keep your answers concise, helpful, and engaging. Use markdown for formatting when appropriate.";
-      }
-      
-      const preferences = currentUser.preferences.length > 0 ? `Their travel interests include ${currentUser.preferences.join(', ')}.` : '';
-      return `You are a personal travel assistant for ${currentUser.name}. ${preferences} Use this information to give them tailored advice for exploring Maharashtra, India. Be friendly, concise, and engaging. Use markdown for formatting.`;
-  }
-
   useEffect(() => {
-    if (isOpen && !chatRef.current && user) {
-        if (!ai) {
-            setIsAiAvailable(false);
+    if (isOpen && user && messages.length === 0) {
+        if (!isAvailable) {
             setMessages([{ sender: 'ai', text: "I'm sorry, the AI assistant is currently offline due to a configuration issue." }]);
             return;
         }
-        setIsAiAvailable(true);
-        chatRef.current = ai.chats.create({
-            model: 'gemini-2.5-flash',
-            config: {
-                systemInstruction: getSystemInstruction(user),
-            },
-        });
         setMessages([{ sender: 'ai', text: `Namaste ${user.name.split(' ')[0]}! How can I help you plan your adventure in Maharashtra today?` }]);
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, isAvailable, messages.length]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !isAiAvailable) return;
+    if (!input.trim() || isLoading || !isAvailable || !user) return;
     
     const userMessage: ChatMessage = { sender: 'user', text: input };
-    setMessages(prev => [...prev, userMessage]);
+    const currentMessages = [...messages, userMessage];
+    setMessages(currentMessages);
+    const messageToSend = input;
     setInput('');
     setIsLoading(true);
 
     try {
-        if (!chatRef.current) throw new Error("Chat not initialized");
-        const response = await chatRef.current.sendMessage({ message: input });
-        const aiMessage: ChatMessage = { sender: 'ai', text: response.text };
+        const chatWithAI = functions.httpsCallable('chatWithAI');
+        const result = await chatWithAI({ history: currentMessages, message: messageToSend, user });
+        const aiMessage: ChatMessage = { sender: 'ai', text: result.data as string };
         setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
         console.error("Chatbot error:", error);
@@ -120,11 +103,11 @@ const Chatbot: React.FC = () => {
                     type="text" 
                     value={input}
                     onChange={e => setInput(e.target.value)}
-                    placeholder={isAiAvailable ? "Ask me anything..." : "Assistant is offline"}
+                    placeholder={isAvailable ? "Ask me anything..." : "Assistant is offline"}
                     className="flex-1 p-3 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark focus:ring-2 focus:ring-primary focus:border-transparent transition"
-                    disabled={isLoading || !isAiAvailable}
+                    disabled={isLoading || !isAvailable}
                 />
-                <button type="submit" className="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-50" disabled={isLoading || !input.trim() || !isAiAvailable}>
+                <button type="submit" className="bg-primary text-white w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 disabled:opacity-50" disabled={isLoading || !input.trim() || !isAvailable}>
                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                 </button>
             </form>

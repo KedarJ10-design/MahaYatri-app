@@ -1,100 +1,59 @@
+
+
 import React from 'react';
-import { Page, Guide } from '../types';
+import { Guide, Page, User } from '../types';
 import Button from './common/Button';
 import GuideCard from './GuideCard';
 
 interface HomePageProps {
-  onNavigate: (page: Page) => void;
-  onViewGuide: (guide: Guide) => void;
+  user: User;
   guides: Guide[];
-  onExploreDestination: (destination: string) => void;
+  onNavigate: (page: Page) => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onNavigate, onViewGuide, guides, onExploreDestination }) => {
-  const featuredGuides = guides.filter(g => g.verificationStatus === 'verified').slice(0, 4);
-  
+const HomePage: React.FC<HomePageProps> = ({ user, guides, onNavigate }) => {
+  const featuredGuides = guides.filter(g => g.verificationStatus === 'verified').slice(0, 3);
+
   return (
-    <div className="space-y-16 animate-fade-in">
+    <div className="animate-fade-in space-y-12">
       {/* Hero Section */}
-      <section className="relative h-96 rounded-2xl overflow-hidden">
-         <div 
-            className="absolute inset-0 w-full h-full bg-cover bg-center bg-fixed" 
-            style={{ backgroundImage: "url('https://picsum.photos/seed/maharashtra-landscape/1200/500')" }}
-        ></div>
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-center items-center p-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-extrabold font-heading text-white mb-4 animate-slide-up">Explore Maharashtra with a Local</h1>
-          <p className="text-lg text-gray-200 mb-8 max-w-2xl animate-slide-up" style={{animationDelay: '0.2s'}}>Discover hidden gems, authentic culture, and unforgettable experiences with our verified local guides.</p>
-          <div className="animate-slide-up" style={{animationDelay: '0.4s'}}>
-            <Button onClick={() => onNavigate(Page.Search)} variant="primary" className="text-lg">
-                Find Your Perfect Guide
-            </Button>
-          </div>
+      <section className="text-center bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20 p-8 rounded-2xl">
+        <h1 className="text-4xl md:text-5xl font-extrabold font-heading text-dark dark:text-light">
+          Welcome back, {user.name.split(' ')[0]}!
+        </h1>
+        <p className="mt-4 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+          Your next adventure in the heart of Maharashtra is just a click away.
+        </p>
+        <div className="mt-8 flex justify-center gap-4 flex-wrap">
+          <Button onClick={() => onNavigate(Page.TripPlanner)} size="md" className="text-lg">
+            Plan a New Trip
+          </Button>
+          <Button onClick={() => onNavigate(Page.Search)} variant="outline" size="md" className="text-lg">
+            Find a Local Guide
+          </Button>
         </div>
       </section>
 
       {/* Featured Guides Section */}
       <section>
-        <h2 className="text-3xl font-bold font-heading mb-6 text-center text-dark dark:text-light">Featured Guides</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <h2 className="text-3xl font-bold font-heading mb-6 text-center">Featured Guides</h2>
+        <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {featuredGuides.map(guide => (
-            <GuideCard key={guide.id} guide={guide} onViewDetails={() => onViewGuide(guide)} />
+            <li key={guide.id}>
+                <GuideCard guide={guide} onViewDetails={() => onNavigate(Page.Search)} />
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
       
-      {/* AI Trip Planner CTA */}
-      <section className="bg-gradient-to-r from-accent to-teal-500 text-white p-10 rounded-2xl flex flex-col md:flex-row items-center justify-between shadow-lg">
-        <div>
-            <h2 className="text-3xl font-bold font-heading mb-2">Can't decide where to go?</h2>
-            <p className="text-lg opacity-90">Let our AI Trip Planner create a personalized itinerary for you in seconds!</p>
-        </div>
-        <Button onClick={() => onNavigate(Page.TripPlanner)} variant="secondary" className="mt-6 md:mt-0 text-lg">
-          Plan My Trip
-        </Button>
-      </section>
-      
-      {/* New Features CTA */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="relative rounded-xl overflow-hidden h-72 group shadow-md transform hover:-translate-y-1 hover:shadow-xl dark:hover:shadow-primary/20 transition-all duration-300">
-            <img src="https://picsum.photos/seed/maharashtrian-food/600/400" alt="Local Food" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-center items-center p-4 text-center text-white group-hover:bg-opacity-60 transition-colors">
-                <h3 className="text-3xl font-bold font-heading mb-3">Taste Local Flavors</h3>
-                <p className="mb-6">Discover the best authentic food from local vendors.</p>
-                <Button onClick={() => onNavigate(Page.Vendors)} variant="outline" className="text-white border-white hover:bg-white hover:text-dark dark:text-white dark:border-white dark:hover:bg-white dark:hover:text-dark">Find Eateries</Button>
-            </div>
-        </div>
-        <div className="relative rounded-xl overflow-hidden h-72 group shadow-md transform hover:-translate-y-1 hover:shadow-xl dark:hover:shadow-primary/20 transition-all duration-300">
-            <img src="https://picsum.photos/seed/maharashtra-homestay/600/400" alt="Homestay" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-center items-center p-4 text-center text-white group-hover:bg-opacity-60 transition-colors">
-                <h3 className="text-3xl font-bold font-heading mb-3">Find Comfortable Stays</h3>
-                <p className="mb-6">Book hotels and homestays approved by locals.</p>
-                <Button onClick={() => onNavigate(Page.Stays)} variant="outline" className="text-white border-white hover:bg-white hover:text-dark dark:text-white dark:border-white dark:hover:bg-white dark:hover:text-dark">Find Stays</Button>
-            </div>
-        </div>
-      </section>
-
-
-      {/* Popular Destinations Section */}
-      <section>
-        <h2 className="text-3xl font-bold font-heading mb-6 text-center text-dark dark:text-light">Popular Destinations</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {['Mumbai-Gateway', 'Pune-Fort', 'Aurangabad-Caves', 'Nashik-Vineyard', 'Mahabaleshwar-Hills', 'Lonavala-Valley'].map(item => {
-            const cityName = item.split('-')[0];
-            return (
-                <button 
-                    key={item} 
-                    onClick={() => onExploreDestination(cityName)}
-                    className="relative rounded-xl shadow-md overflow-hidden h-64 group text-left transform hover:-translate-y-1 hover:shadow-xl dark:hover:shadow-primary/20 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-primary/50"
-                >
-                    <img src={`https://picsum.photos/seed/${item.toLowerCase()}/600/400`} alt={cityName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent transition-all duration-300 group-hover:from-black/80" />
-                    <div className="absolute inset-0 flex flex-col justify-end p-4 text-white">
-                        <h3 className="text-2xl font-bold font-heading transform transition-transform duration-300 group-hover:-translate-y-2 group-hover:text-primary transition-colors">{cityName}</h3>
-                        <p className="text-sm opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-hover:-translate-y-1">Explore destination &rarr;</p>
-                    </div>
-                </button>
-            )
-          })}
+      {/* Call to Action Section */}
+      <section className="text-center">
+         <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg">
+            <h2 className="text-3xl font-bold font-heading">Explore Places with AI</h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+                Get AI-powered suggestions for hidden gems, local eateries, and exciting activities.
+            </p>
+            <Button onClick={() => onNavigate(Page.Explore)} className="mt-6">Start Exploring</Button>
         </div>
       </section>
     </div>

@@ -1,46 +1,72 @@
+
+
 import React, { useState, useMemo } from 'react';
-import { Vendor } from '../types';
+import { Vendor, ToastMessage, VendorBooking } from '../types';
 import VendorCard from './VendorCard';
+import Input from './common/Input';
+import VendorBookingModal from './VendorBookingModal';
+
+export const priceRangeMap: Record<Vendor['priceRange'], { label: string; range: string }> = {
+  '$': { label: 'Budget', range: 'Under ₹500' },
+  '$$': { label: 'Mid-Range', range: '₹500 - ₹1500' },
+  '$$$': { label: 'Fine Dining', range: 'Over ₹1500' },
+};
 
 interface VendorsPageProps {
   vendors: Vendor[];
-  onBookVendor: (vendor: Vendor) => void;
+  addToast: (message: string, type: ToastMessage['type']) => void;
 }
 
-export const priceRangeMap = {
-  '$': { label: 'Affordable', range: 'Avg. ₹100-300' },
-  '$$': { label: 'Moderate', range: 'Avg. ₹300-700' },
-  '$$$': { label: 'Expensive', range: 'Avg. ₹700+' },
-};
-
-const VendorsPage: React.FC<VendorsPageProps> = ({ vendors, onBookVendor }) => {
-  const [priceFilter, setPriceFilter] = useState<string>('');
+const VendorsPage: React.FC<VendorsPageProps> = ({ vendors, addToast }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [bookingVendor, setBookingVendor] = useState<Vendor | null>(null);
 
   const filteredVendors = useMemo(() => {
-    return vendors.filter(vendor => {
-      const priceMatch = priceFilter ? vendor.priceRange === priceFilter : true;
-      return vendor.verificationStatus === 'verified' && priceMatch;
-    });
-  }, [vendors, priceFilter]);
+    return vendors.filter(vendor =>
+      vendor.verificationStatus === 'verified' &&
+      (vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       vendor.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       vendor.cuisine.some(c => c.toLowerCase().includes(searchTerm.toLowerCase())))
+    );
+  }, [vendors, searchTerm]);
+  
+  const handleBookingSubmit = async (bookingDetails: Omit<VendorBooking, 'id' | 'userId' | 'status'>) => {
+    console.log("Vendor booking submitted", bookingDetails);
+    addToast("Table booked successfully!", "success");
+    setBookingVendor(null);
+  };
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-center mb-4">Eateries & Restaurants</h1>
-      <div className="flex justify-center gap-2 mb-8">
-        <button onClick={() => setPriceFilter('')} className={`px-4 py-2 text-sm rounded-full border-2 transition-colors ${priceFilter === '' ? 'bg-primary text-white border-primary' : 'bg-transparent text-primary border-primary'}`}>
-            All
-        </button>
-        {Object.entries(priceRangeMap).map(([key, value]) => (
-            <button key={key} onClick={() => setPriceFilter(key)} className={`px-4 py-2 text-sm rounded-full border-2 transition-colors ${priceFilter === key ? 'bg-primary text-white border-primary' : 'bg-transparent text-primary border-primary'}`}>
-                {value.label}
-            </button>
-        ))}
+    <div className="animate-fade-in">
+      <div className="text-center">
+        <h1 className="text-4xl font-extrabold font-heading text-dark dark:text-light mb-2">Explore Local Flavors</h1>
+        <p className="text-lg text-gray-600 dark:text-gray-400">Discover the best food experiences Maharashtra has to offer.</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+      <div className="mt-8 max-w-2xl mx-auto">
+        <Input
+          label=""
+          id="vendor-search-input"
+          placeholder="Search by name, location, or cuisine..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+        />
+      </div>
+      <ul className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {filteredVendors.map(vendor => (
-          <VendorCard key={vendor.id} vendor={vendor} onBook={onBookVendor} />
+          <li key={vendor.id}>
+            <VendorCard vendor={vendor} onBook={setBookingVendor} />
+          </li>
         ))}
-      </div>
+      </ul>
+      
+      {bookingVendor && (
+        <VendorBookingModal
+            vendor={bookingVendor}
+            onClose={() => setBookingVendor(null)}
+            onBook={handleBookingSubmit}
+            addToast={addToast}
+        />
+      )}
     </div>
   );
 };

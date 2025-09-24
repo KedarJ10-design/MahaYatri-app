@@ -1,4 +1,4 @@
-import { User, Guide, Booking, BookingStatus, Conversation, DirectMessage, Review, Vendor, Stay, Notification } from '../types';
+import { User, Guide, Booking, BookingStatus, Conversation, DirectMessage, Review, Vendor, Stay, Notification, FriendRequest, CompletedBooking } from '../types';
 
 const today = new Date();
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
@@ -27,6 +27,8 @@ export const mockTouristUser: User = {
   status: 'active',
   hasPendingApplication: false,
   wishlist: [],
+  followingGuideIds: ['guide-1'],
+  friends: ['user-2'],
 };
 
 export const mockGuideUser: User = {
@@ -44,6 +46,8 @@ export const mockGuideUser: User = {
     status: 'active',
     hasPendingApplication: false,
     wishlist: [],
+    followingGuideIds: [],
+    friends: [],
 };
 
 export const mockAdminUser: User = {
@@ -61,6 +65,8 @@ export const mockAdminUser: User = {
   status: 'active',
   hasPendingApplication: false,
   wishlist: [],
+  followingGuideIds: [],
+  friends: [],
 };
 
 export const mockGuides: Guide[] = [
@@ -83,11 +89,12 @@ export const mockGuides: Guide[] = [
     },
     contactUnlockPrice: 250,
     availability: {
-      [getFutureDate(5)]: false,
-      [getFutureDate(6)]: false,
-      [getFutureDate(10)]: true,
-      [getFutureDate(11)]: false,
+      [getFutureDate(5)]: 'unavailable_full',
+      [getFutureDate(6)]: 'unavailable_full',
+      [getFutureDate(11)]: 'unavailable_morning',
     },
+    followersCount: 231,
+    coordinates: { lat: 19.0760, lng: 72.8777 },
   },
   {
     id: 'guide-2',
@@ -108,10 +115,12 @@ export const mockGuides: Guide[] = [
     },
     contactUnlockPrice: 200,
     availability: {
-      [getFutureDate(2)]: false,
-      [getFutureDate(3)]: false,
-      [getFutureDate(4)]: false,
+      [getFutureDate(2)]: 'unavailable_full',
+      [getFutureDate(3)]: 'unavailable_afternoon',
+      [getFutureDate(4)]: 'unavailable_full',
     },
+    followersCount: 178,
+    coordinates: { lat: 18.5204, lng: 73.8567 },
   },
   {
     id: 'guide-3',
@@ -132,6 +141,8 @@ export const mockGuides: Guide[] = [
     },
     contactUnlockPrice: 300,
     availability: {},
+    followersCount: 302,
+    coordinates: { lat: 19.8762, lng: 75.3433 },
   },
   {
     id: 'guide-4',
@@ -152,6 +163,8 @@ export const mockGuides: Guide[] = [
     },
     contactUnlockPrice: 150,
     availability: {},
+    followersCount: 89,
+    coordinates: { lat: 19.9975, lng: 73.7898 },
   },
 ];
 
@@ -391,10 +404,10 @@ export const mockReviews: Review[] = [
 
 // We need some more users for the reviews and admin panel to make sense
 export const otherUsers: User[] = [
-    {...mockTouristUser, id: 'user-2', name: 'Rahul Verma', avatarUrl: 'https://picsum.photos/seed/tourist-man-1/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false, unlockedGuideIds: [], wishlist: [] },
-    {...mockTouristUser, id: 'user-3', name: 'Sneha Reddy', avatarUrl: 'https://picsum.photos/seed/tourist-woman-2/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false, unlockedGuideIds: [], wishlist: [] },
-    {...mockTouristUser, id: 'user-4', name: 'Arjun Mehta', avatarUrl: 'https://picsum.photos/seed/tourist-man-2/200/200', role: 'user', status: 'suspended', redeemedRewardIds: [], hasPendingApplication: false, unlockedGuideIds: [], wishlist: [] },
-    {...mockTouristUser, id: 'user-5', name: 'Divya Rao', avatarUrl: 'https://picsum.photos/seed/tourist-woman-3/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: true, unlockedGuideIds: [], wishlist: [] } // This user has a pending application
+    {...mockTouristUser, id: 'user-2', name: 'Rahul Verma', avatarUrl: 'https://picsum.photos/seed/tourist-man-1/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false, unlockedGuideIds: [], wishlist: [], followingGuideIds: [], friends: ['user-1'] },
+    {...mockTouristUser, id: 'user-3', name: 'Sneha Reddy', avatarUrl: 'https://picsum.photos/seed/tourist-woman-2/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: false, unlockedGuideIds: [], wishlist: [], followingGuideIds: [], friends: [] },
+    {...mockTouristUser, id: 'user-4', name: 'Arjun Mehta', avatarUrl: 'https://picsum.photos/seed/tourist-man-2/200/200', role: 'user', status: 'suspended', redeemedRewardIds: [], hasPendingApplication: false, unlockedGuideIds: [], wishlist: [], followingGuideIds: [], friends: [] },
+    {...mockTouristUser, id: 'user-5', name: 'Divya Rao', avatarUrl: 'https://picsum.photos/seed/tourist-woman-3/200/200', role: 'user', status: 'active', redeemedRewardIds: [], hasPendingApplication: true, unlockedGuideIds: [], wishlist: [], followingGuideIds: [], friends: [] } // This user has a pending application
 ];
 
 export const mockNotifications: Notification[] = [
@@ -418,5 +431,15 @@ export const mockNotifications: Notification[] = [
         read: true,
         type: 'system',
         timestamp: Date.now() - 1000 * 60 * 60 * 24, // 1 day ago
+    }
+];
+
+export const mockFriendRequests: FriendRequest[] = [
+    {
+        id: 'fr-1',
+        fromUserId: 'user-3', // Sneha Reddy
+        toUserId: 'user-1', // Priya Sharma
+        status: 'pending',
+        createdAt: new Date().toISOString(),
     }
 ];

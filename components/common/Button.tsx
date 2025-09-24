@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import Spinner from './Spinner';
 
@@ -9,7 +10,9 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean;
 }
 
-const Button: React.FC<ButtonProps> = ({ variant = 'primary', size = 'md', children, className, loading, ...props }) => {
+// FIX: Wrapped Button component with React.forwardRef to allow passing refs.
+// This is necessary for components like modals where we need to manage focus on elements like buttons.
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ variant = 'primary', size = 'md', children, className, loading, ...props }, ref) => {
   const baseClasses = 'rounded-lg font-semibold transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-dark disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-px hover:shadow-lg active:translate-y-0 active:shadow-sm inline-flex items-center justify-center';
 
   const sizeClasses = {
@@ -26,17 +29,20 @@ const Button: React.FC<ButtonProps> = ({ variant = 'primary', size = 'md', child
   };
 
   return (
-    <button className={`${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`} disabled={loading} {...props}>
+    <button ref={ref} className={`${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`} disabled={loading} aria-busy={loading} {...props}>
       {loading ? (
         <>
             <Spinner className="w-5 h-5 mr-2" />
             <span>Processing...</span>
+            <span role="alert" aria-live="assertive" className="sr-only">Request is processing</span>
         </>
       ) : (
         children
       )}
     </button>
   );
-};
+});
+
+Button.displayName = 'Button';
 
 export default Button;

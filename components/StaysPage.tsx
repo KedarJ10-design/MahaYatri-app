@@ -1,53 +1,92 @@
-import React, { useState, useMemo } from 'react';
-import { Stay } from '../types';
+
+
+import React, { useState, useMemo, useEffect } from 'react';
+import { Stay, ToastMessage, StayBooking } from '../types';
 import StayCard from './StayCard';
+import Input from './common/Input';
+import StayBookingModal from './StayBookingModal';
+import PriceRangeSlider from './common/PriceRangeSlider';
 
 interface StaysPageProps {
   stays: Stay[];
-  onBookStay: (stay: Stay) => void;
+  addToast: (message: string, type: ToastMessage['type']) => void;
 }
 
-export const stayPriceRangeMap: Record<string, { label: string; min: number; max: number }> = {
-  'affordable': { label: 'Affordable', min: 0, max: 5000 },
-  'moderate': { label: 'Moderate', min: 5001, max: 10000 },
-  'expensive': { label: 'Expensive', min: 10001, max: Infinity },
-};
+const StaysPage: React.FC<StaysPageProps> = ({ stays, addToast }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [maxPrice, setMaxPrice] = useState(0);
+  const [bookingStay, setBookingStay] = useState<Stay | null>(null);
 
-const StaysPage: React.FC<StaysPageProps> = ({ stays, onBookStay }) => {
-  const [priceFilter, setPriceFilter] = useState<string>('');
+  const priceRange = useMemo(() => {
+    if (stays.length === 0) return { min: 0, max: 30000 };
+    const prices = stays.map(s => s.pricePerNight);
+    return {
+      min: Math.min(...prices),
+      max: Math.max(...prices),
+    };
+  }, [stays]);
+
+  useEffect(() => {
+    if (maxPrice === 0 && priceRange.max > 0) {
+      setMaxPrice(priceRange.max);
+    }
+  }, [priceRange.max, maxPrice]);
 
   const filteredStays = useMemo(() => {
-    return stays.filter(stay => {
-      const priceMatch = priceFilter 
-        ? stay.pricePerNight >= stayPriceRangeMap[priceFilter].min && stay.pricePerNight <= stayPriceRangeMap[priceFilter].max
-        : true;
-      return stay.verificationStatus === 'verified' && priceMatch;
-    });
-  }, [stays, priceFilter]);
+    const textFiltered = stays.filter(stay =>
+      stay.verificationStatus === 'verified' &&
+      (stay.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       stay.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       stay.type.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+    return textFiltered.filter(stay => stay.pricePerNight <= maxPrice);
+  }, [stays, searchTerm, maxPrice]);
+  
+  const handleBookingSubmit = async (bookingDetails: Omit<StayBooking, 'id' | 'userId' | 'status'>) => {
+    console.log("Stay booking submitted", bookingDetails);
+    addToast("Stay booked successfully!", "success");
+    setBookingStay(null);
+  };
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-center mb-4">Hotels & Homestays</h1>
-      <div className="flex justify-center flex-wrap gap-2 mb-8">
-        <button onClick={() => setPriceFilter('')} className={`px-4 py-2 text-sm rounded-full border-2 transition-colors ${priceFilter === '' ? 'bg-primary text-white border-primary' : 'bg-transparent text-primary border-primary dark:text-orange-400 dark:border-orange-400'}`}>
-            All
-        </button>
-        {Object.entries(stayPriceRangeMap).map(([key, value]) => (
-            <button key={key} onClick={() => setPriceFilter(key)} className={`px-4 py-2 text-sm rounded-full border-2 transition-colors capitalize ${priceFilter === key ? 'bg-primary text-white border-primary' : 'bg-transparent text-primary border-primary dark:text-orange-400 dark:border-orange-400'}`}>
-                {value.label}
-            </button>
-        ))}
+    <div className="animate-fade-in">
+      <div className="text-center">
+        <h1 className="text-4xl font-extrabold font-heading text-dark dark:text-light mb-2">Find a Place to Stay</h1>
+        <p className="text-lg text-gray-600 dark:text-gray-400">From luxury hotels to cozy homestays.</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+      <div className="mt-8 max-w-4xl mx-auto bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg space-y-6">
+        <Input
+          label=""
+          id="stay-search-input"
+          placeholder="Search by name, location, or type (Hotel, Homestay)..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+        />
+        <PriceRangeSlider
+          label="Max Price Per Night"
+          min={priceRange.min}
+          max={priceRange.max}
+          step={500}
+          value={maxPrice}
+          onChange={setMaxPrice}
+        />
+      </div>
+      <ul className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {filteredStays.map(stay => (
-          <StayCard key={stay.id} stay={stay} onBook={onBookStay} />
+          <li key={stay.id}>
+            <StayCard stay={stay} onBook={setBookingStay} />
+          </li>
         ))}
-      </div>
-       {filteredStays.length === 0 && (
-        <div className="text-center py-16 col-span-full">
-          <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-300">No Stays Found</h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your price filter.</p>
-        </div>
+      </ul>
+      
+      {bookingStay && (
+        <StayBookingModal 
+          stay={bookingStay} 
+          onClose={() => setBookingStay(null)}
+          onBook={handleBookingSubmit}
+          addToast={addToast}
+        />
       )}
     </div>
   );

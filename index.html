@@ -1,154 +1,127 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MahaYatri</title>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
-    "react/": "https://aistudiocdn.com/react@^19.1.1/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.2.1/",
-    "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
-    "cors": "https://aistudiocdn.com/cors@^2.8.5",
-    "firebase-functions": "https://aistudiocdn.com/firebase-functions@^6.4.0",
-    "firebase-admin": "https://aistudiocdn.com/firebase-admin@^13.5.0",
-    "razorpay": "https://aistudiocdn.com/razorpay@^2.9.6"
-  }
-}
-</script>
-  <style type="text/tailwindcss">
-    @tailwind base;
-    @tailwind components;
-    @tailwind utilities;
-
-    @layer base {
-      :root {
-        --color-primary: 234 88 12; /* orange-600 */
-        --color-secondary: 245 158 11; /* amber-500 */
-        --color-accent: 219 39 119; /* pink-600 */
-        --color-dark: 17 24 39; /* gray-900 */
-        --color-dark-light: 31 41 55; /* gray-800 */
-        --color-light: 249 250 251; /* gray-50 */
-      }
-      .dark {
-        --color-primary: 249 115 22; /* orange-500 */
-        --color-secondary: 251 191 36; /* amber-400 */
-        --color-accent: 236 72 153; /* pink-500 */
-        --color-dark: 17 24 39; /* gray-900 */
-        --color-dark-light: 31 41 55; /* gray-800 */
-        --color-light: 249 250 251; /* gray-50 */
-      }
-      .no-scroll {
-        overflow: hidden;
-      }
-    }
-
-    @layer utilities {
-      /* Custom scrollbar */
-      ::-webkit-scrollbar {
-        width: 12px;
-      }
-      ::-webkit-scrollbar-track {
-        background: theme('colors.light');
-      }
-      .dark ::-webkit-scrollbar-track {
-        background: theme('colors.dark-light');
-      }
-      ::-webkit-scrollbar-thumb {
-        background: theme('colors.primary/50');
-        border-radius: 6px;
-        border: 3px solid theme('colors.light');
-      }
-      .dark ::-webkit-scrollbar-thumb {
-        background: theme('colors.primary/50');
-        border: 3px solid theme('colors.dark-light');
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: theme('colors.primary/70');
-      }
-    }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MahaYatri</title>
     
-    @layer components {
-      .font-heading {
-        font-family: 'Poppins', sans-serif;
-      }
-      .mobile-nav {
-        transform: translateX(-100%);
-        transition: transform 0.3s ease-in-out;
-      }
-      .mobile-nav.open {
-        transform: translateX(0);
-      }
-    }
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     
-    @keyframes fade-in {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    @keyframes fade-in-slow {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    @keyframes slide-up {
-      from { transform: translateY(20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-    @keyframes pulse-subtle {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-    @keyframes gradient-bg {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    @keyframes countdown-circle {
-      from { stroke-dashoffset: 283; }
-      to { stroke-dashoffset: 0; }
-    }
-  </style>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
     tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            primary: 'rgb(var(--color-primary) / <alpha-value>)',
-            secondary: 'rgb(var(--color-secondary) / <alpha-value>)',
-            accent: 'rgb(var(--color-accent) / <alpha-value>)',
-            dark: {
-              DEFAULT: 'rgb(var(--color-dark) / <alpha-value>)',
-              light: 'rgb(var(--color-dark-light) / <alpha-value>)'
-            },
-            light: 'rgb(var(--color-light) / <alpha-value>)'
-          },
-          fontFamily: {
-            sans: ['Roboto', 'sans-serif'],
-            heading: ['Poppins', 'sans-serif'],
-          },
-          animation: {
-            'fade-in': 'fade-in 0.5s ease-out forwards',
-            'fade-in-slow': 'fade-in-slow 0.8s ease-out forwards',
-            'slide-up': 'slide-up 0.5s ease-out forwards',
-            'pulse-subtle': 'pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            'gradient-bg': 'gradient-bg 15s ease infinite',
-            'countdown-circle': 'countdown-circle 1s linear forwards',
-          }
-        },
-      },
+        darkMode: 'class',
+        theme: {
+            extend: {
+                colors: {
+                    primary: '#EA580C', // Updated for WCAG AA contrast
+                    secondary: '#FFB800',
+                    accent: '#00C49A',
+                    dark: '#121212',
+                    'dark-light': '#1E1E1E',
+                    'dark-lighter': '#2a2a2a',
+                    light: '#F5F5F5',
+                },
+                fontFamily: {
+                    heading: ['Lora', 'serif'],
+                    body: ['Poppins', 'sans-serif'],
+                },
+                animation: {
+                    'fade-in': 'fadeIn 0.5s ease-in-out',
+                    'fade-in-slow': 'fadeIn 1s ease-in-out',
+                    'slide-up': 'slideUp 0.5s ease-out',
+                    'pulse-subtle': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    'gradient-bg': 'gradient-bg 15s ease infinite',
+                    'pulse-heart': 'pulse-heart 1.5s ease-in-out infinite',
+                    'gentle-sway': 'gentle-sway 3s ease-in-out infinite alternate',
+                    'scale-in': 'scaleIn 0.3s ease-out',
+                    'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
+                    'shimmer': 'shimmer 1.5s infinite linear',
+                },
+                keyframes: {
+                    fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
+                    slideUp: { '0%': { transform: 'translateY(20px)', opacity: 0 }, '100%': { transform: 'translateY(0)', opacity: 1 } },
+                    'gradient-bg': {
+                        '0%': { backgroundPosition: '0% 50%' },
+                        '50%': { backgroundPosition: '100% 50%' },
+                        '100%': { backgroundPosition: '0% 50%' },
+                    },
+                    'pulse-heart': {
+                        '0%, 100%': { transform: 'scale(1)' },
+                        '50%': { transform: 'scale(1.1)' }
+                    },
+                    'gentle-sway': {
+                        'from': { transform: 'rotate(-2deg) translateY(-2px)' },
+                        'to': { transform: 'rotate(2deg) translateY(2px)' }
+                    },
+                    scaleIn: {
+                        '0%': { transform: 'scale(0.95)', opacity: 0 },
+                        '100%': { transform: 'scale(1)', opacity: 1 }
+                    },
+                    fadeInUp: {
+                        '0%': { opacity: 0, transform: 'translateY(20px)' },
+                        '100%': { opacity: 1, transform: 'translateY(0)' }
+                    },
+                    shimmer: {
+                        '0%': { transform: 'translateX(-100%)' },
+                        '100%': { transform: 'translateX(100%)' },
+                    },
+                }
+            }
+        }
     }
-  </script>
+    </script>
+    <style>
+        .no-scroll { overflow: hidden; }
+        .mobile-nav { transform: translateX(-100%); transition: transform 0.3s ease-in-out; }
+        .mobile-nav.open { transform: translateX(0); }
+        /* For LazyImage Component */
+        .lazy-image { transition: opacity 0.5s ease-in-out; }
+        .lazy-image-placeholder { filter: blur(10px); }
+        /* Accessibility utility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        /* For Leaflet map */
+        .leaflet-container {
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "firebase-functions": "https://aistudiocdn.com/firebase-functions@^6.4.0",
+        "firebase-admin": "https://aistudiocdn.com/firebase-admin@^13.5.0",
+        "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
+        "razorpay": "https://aistudiocdn.com/razorpay@^2.9.6",
+        "cors": "https://aistudiocdn.com/cors@^2.8.5",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0",
+        "react/": "https://aistudiocdn.com/react@^19.1.1/",
+        "react": "https://aistudiocdn.com/react@^19.1.1",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+        "firebase/": "https://aistudiocdn.com/firebase@^12.3.0/",
+        "leaflet": "https://aistudiocdn.com/leaflet@^1.9.4",
+        "react-leaflet": "https://aistudiocdn.com/react-leaflet@^4.2.1"
+      }
+    }
+    </script>
+    <script type="module" src="/index.tsx"></script>
 </head>
 <body class="bg-light dark:bg-dark">
-  <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+    <div id="root"></div>
 </body>
 </html>

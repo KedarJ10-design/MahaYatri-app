@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Button from './common/Button';
 import Input from './common/Input';
@@ -54,6 +55,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ type, onClose, onAdd }) => 
     let newItem: Guide | Vendor | Stay;
 
     if (type === 'guide') {
+        // FIX: Added missing required properties for the Guide type.
         newItem = {
             ...commonData,
             languages: formData.languages.split(',').map(s => s.trim()).filter(Boolean),
@@ -62,6 +64,10 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ type, onClose, onAdd }) => 
             pricePerDay: Number(formData.pricePerDay),
             contactInfo: { phone: formData.phone, email: formData.email },
             contactUnlockPrice: Number(formData.contactUnlockPrice),
+            coordinates: { lat: 19.0760, lng: 72.8777 }, // Default to Mumbai coordinates
+            followersCount: 0,
+            // FIX: Added missing 'availability' property to satisfy the Guide type.
+            availability: {},
         };
     } else if (type === 'vendor') {
         newItem = {
@@ -69,6 +75,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ type, onClose, onAdd }) => 
             type: formData.vendorType,
             cuisine: formData.cuisine.split(',').map(s => s.trim()).filter(Boolean),
             priceRange: formData.priceRange,
+            // FIX: Added missing 'availability' property to satisfy the Vendor type.
+            availability: {},
         };
     } else { // stay
         newItem = {
@@ -76,6 +84,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ type, onClose, onAdd }) => 
             type: formData.stayType,
             pricePerNight: Number(formData.pricePerNight),
             amenities: formData.amenities.split(',').map(s => s.trim()).filter(Boolean),
+            // FIX: Added missing 'availability' property to satisfy the Stay type.
+            availability: {},
         };
     }
     onAdd(newItem, type);

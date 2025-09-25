@@ -52,6 +52,7 @@ export interface User {
   wishlist: PlaceSuggestion[];
   followingGuideIds: string[];
   friends: string[];
+  fcmToken?: string;
 }
 
 export type AvailabilityStatus = 'unavailable_morning' | 'unavailable_afternoon' | 'unavailable_full';

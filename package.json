@@ -19,11 +19,11 @@
     "zustand": "^5.0.8",
     "razorpay": "^2.9.6",
     "react-hook-form": "^7.52.1",
+    "firebase-admin": "^13.5.0",
     "cors": "^2.8.5",
-    "vite": "^7.1.7",
-    "@vitejs/plugin-react": "^5.0.3",
     "firebase-functions": "^6.4.0",
-    "firebase-admin": "^13.5.0"
+    "vite": "^7.1.7",
+    "@vitejs/plugin-react": "^5.0.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

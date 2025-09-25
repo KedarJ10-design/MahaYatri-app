@@ -1,7 +1,5 @@
-
 import React, { useState, useMemo } from 'react';
 import { User, Guide, Vendor, Stay, Verifiable } from '../types';
-import { mockUsers, mockGuides, mockVendors, mockStays } from '../services/mockData';
 import Button from './common/Button';
 import Badge from './Badge';
 
@@ -13,25 +11,28 @@ const TabButton: React.FC<{ active: boolean, onClick: () => void, children: Reac
     </button>
 );
 
-const AdminPage: React.FC<{
+// FIX: Define a props interface to accept data from the parent component.
+interface AdminPageProps {
+    users: User[];
+    guides: Guide[];
+    vendors: Vendor[];
+    stays: Stay[];
     onVerify: (item: Verifiable) => void;
     onAdd: (type: 'guide' | 'vendor' | 'stay') => void;
     onConfirm: (title: string, message: React.ReactNode, onConfirm: () => void, confirmButtonVariant?: 'primary' | 'danger') => void;
-}> = ({ onVerify, onAdd, onConfirm }) => {
+}
+
+const AdminPage: React.FC<AdminPageProps> = ({ users, guides, vendors, stays, onVerify, onAdd, onConfirm }) => {
     const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
-    const allData = {
-        users: mockUsers,
-        guides: mockGuides,
-        vendors: mockVendors,
-        stays: mockStays,
-    };
+    // FIX: Use props for data instead of mock data.
+    const allData = { users, guides, vendors, stays };
 
     const pendingVerifications = useMemo(() => [
         ...allData.guides.filter(g => g.verificationStatus === 'pending'),
         ...allData.vendors.filter(v => v.verificationStatus === 'pending'),
         ...allData.stays.filter(s => s.verificationStatus === 'pending'),
-    ], [allData.guides, allData.vendors, allData.stays]);
+    ], [allData]);
 
     const stats = {
         totalUsers: allData.users.length,

@@ -1,13 +1,16 @@
-
 import React, { useState, useMemo } from 'react';
 import { Stay } from '../types';
-import { mockStays } from '../services/mockData';
 import StayCard from './StayCard';
 import Input from './common/Input';
 import PriceRangeSlider from './common/PriceRangeSlider';
 
-const StaysPage: React.FC<{onBook: (stay: Stay) => void}> = ({ onBook }) => {
-  const [stays, setStays] = useState<Stay[]>(mockStays);
+// FIX: Define a props interface to accept 'stays' from the parent.
+interface StaysPageProps {
+  onBook: (stay: Stay) => void;
+  stays: Stay[];
+}
+
+const StaysPage: React.FC<StaysPageProps> = ({ onBook, stays }) => {
   const [filters, setFilters] = useState({
     location: '',
     type: 'all',
@@ -23,6 +26,7 @@ const StaysPage: React.FC<{onBook: (stay: Stay) => void}> = ({ onBook }) => {
   };
   
   const { uniqueLocations, maxPriceValue } = useMemo(() => {
+    // FIX: Use the 'stays' prop to generate filter options.
     const locations = ['all', ...new Set(stays.map(s => s.location))].sort();
     const max = Math.max(...stays.map(s => s.pricePerNight), 10000);
     return {
@@ -32,6 +36,7 @@ const StaysPage: React.FC<{onBook: (stay: Stay) => void}> = ({ onBook }) => {
   }, [stays]);
 
   const filteredStays = useMemo(() => {
+    // FIX: Use the 'stays' prop for filtering.
     return stays.filter(stay => {
       const locationMatch = filters.location === 'all' || stay.location.toLowerCase().includes(filters.location.toLowerCase());
       const typeMatch = filters.type === 'all' || stay.type === filters.type;

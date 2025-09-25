@@ -1,7 +1,5 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Guide, User, Review } from '../types';
-import { mockGuides, mockReviews, otherUsers } from '../services/mockData';
 import GuideCard from './GuideCard';
 import Input from './common/Input';
 import Button from './common/Button';
@@ -13,9 +11,12 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface SearchPageProps {
   onBook: (guide: Guide) => void;
+  // FIX: Added 'guides' and 'allUsers' props to make the component data-driven.
+  guides: Guide[];
+  allUsers: User[];
 }
 
-const SearchPage: React.FC<SearchPageProps> = ({ onBook }) => {
+const SearchPage: React.FC<SearchPageProps> = ({ onBook, guides: initialGuides, allUsers }) => {
   const [guides, setGuides] = useState<Guide[]>([]);
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
@@ -32,21 +33,23 @@ const SearchPage: React.FC<SearchPageProps> = ({ onBook }) => {
   useEffect(() => {
     setLoading(true);
     setTimeout(() => {
-        setGuides(mockGuides);
+        // FIX: Use the 'initialGuides' prop instead of mock data.
+        setGuides(initialGuides);
         setLoading(false);
     }, 500);
-  }, []);
+  }, [initialGuides]);
 
   const { uniqueLocations, uniqueSpecialties, maxPriceValue } = useMemo(() => {
-    const locations = [...new Set(mockGuides.map(g => g.location))].sort();
-    const specialties = [...new Set(mockGuides.flatMap(g => g.specialties))].sort();
-    const max = Math.max(...mockGuides.map(g => g.pricePerDay), 5000);
+    // FIX: Use the 'initialGuides' prop to derive filter options.
+    const locations = [...new Set(initialGuides.map(g => g.location))].sort();
+    const specialties = [...new Set(initialGuides.flatMap(g => g.specialties))].sort();
+    const max = Math.max(...initialGuides.map(g => g.pricePerDay), 5000);
     return {
       uniqueLocations: locations,
       uniqueSpecialties: specialties,
       maxPriceValue: Math.ceil(max / 1000) * 1000, // Round up to nearest 1000
     };
-  }, []);
+  }, [initialGuides]);
 
   const filteredGuides = useMemo(() => {
     return guides.filter(guide => {
@@ -78,14 +81,16 @@ const SearchPage: React.FC<SearchPageProps> = ({ onBook }) => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
               <select value={location} onChange={e => setLocation(e.target.value)} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light ...">
                 <option value="all">All Locations</option>
-                {uniqueLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                {/* FIX: Cast key to string to satisfy stricter type checking. */}
+                {uniqueLocations.map(loc => <option key={String(loc)} value={loc}>{loc}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Specialty</label>
               <select value={specialty} onChange={e => setSpecialty(e.target.value)} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light ...">
                 <option value="all">All Specialties</option>
-                {uniqueSpecialties.map(spec => <option key={spec} value={spec}>{spec}</option>)}
+                {/* FIX: Cast key to string to satisfy stricter type checking. */}
+                {uniqueSpecialties.map(spec => <option key={String(spec)} value={spec}>{spec}</option>)}
               </select>
             </div>
             <PriceRangeSlider label="Max Price per Day" min={1000} max={maxPriceValue} step={500} value={maxPrice} onChange={setMaxPrice} />
@@ -137,7 +142,8 @@ const SearchPage: React.FC<SearchPageProps> = ({ onBook }) => {
                 setSelectedGuide(null);
             }}
             user={user}
-            allUsers={[user, ...otherUsers]}
+            // FIX: Use the 'allUsers' prop instead of mock data.
+            allUsers={allUsers}
             addToast={addToast}
         />
       )}

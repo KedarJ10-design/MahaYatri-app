@@ -1,8 +1,5 @@
-
-
 import React, { useState } from 'react';
 import { User, Guide, Page } from '../types';
-import { mockGuides } from '../services/mockData';
 import Button from './common/Button';
 import GuideCard from './GuideCard';
 import GuideDetailsModal from './GuideDetailsModal';
@@ -10,12 +7,15 @@ import GuideDetailsModal from './GuideDetailsModal';
 interface HomePageProps {
   user: User;
   onNavigate: (page: Page) => void;
+  // FIX: Added 'guides' prop to receive guide data from the parent component.
+  guides: Guide[];
 }
 
-const HomePage: React.FC<HomePageProps> = ({ user, onNavigate }) => {
+const HomePage: React.FC<HomePageProps> = ({ user, onNavigate, guides }) => {
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
 
-  const featuredGuides = mockGuides.filter(g => g.rating >= 4.9).slice(0, 4);
+  // FIX: Use the 'guides' prop instead of mock data.
+  const featuredGuides = guides.filter(g => g.rating >= 4.9).slice(0, 4);
 
   return (
     <div className="space-y-12 animate-fade-in">

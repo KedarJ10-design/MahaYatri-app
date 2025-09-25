@@ -6,110 +6,29 @@
     <title>MahaYatri</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛰️</text></svg>">
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Leaflet CSS for Maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 
-    <!-- Custom Styles & Tailwind Config -->
     <style type="text/tailwindcss">
-        @layer base {
-            /* Smooth scrolling for anchor links */
-            html {
-                scroll-behavior: smooth;
-            }
-            body {
-                @apply bg-light dark:bg-dark text-dark dark:text-light;
-            }
-        }
-        @layer components {
-            .mobile-nav {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease-in-out;
-            }
-            .mobile-nav.open {
-                transform: translateX(0);
-            }
-            .no-scroll {
-                overflow: hidden;
-            }
-            /* Styles for the new LazyImage component */
-            .lazy-image {
-                transition: opacity 0.5s ease-in-out;
-            }
-            .lazy-image-placeholder {
-                filter: blur(10px);
-                transform: scale(1.1);
-            }
-        }
-        @layer utilities {
-            .animate-gradient-bg {
-                animation: gradient-animation 10s ease infinite;
-            }
-            .animate-fade-in {
-                animation: fade-in 0.5s ease-in-out forwards;
-            }
-            .animate-slide-up {
-                animation: slide-up 0.4s ease-out forwards;
-            }
-            .animate-pulse-subtle {
-                animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-            }
-            /* Shimmer animation for Skeleton Loader */
-            .animate-shimmer {
-                animation: shimmer 1.5s infinite linear;
-            }
-        }
-        @keyframes gradient-animation {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        @keyframes fade-in {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slide-up {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pulse-subtle {
-            50% {
-                opacity: .8;
-                transform: scale(1.02);
-            }
-        }
-        @keyframes shimmer {
-            100% {
-                transform: translateX(100%);
-            }
-        }
+        @layer base { html { scroll-behavior: smooth; } body { @apply bg-light dark:bg-dark text-dark dark:text-light; } }
+        @layer components { .mobile-nav { transform: translateX(-100%); transition: transform 0.3s ease-in-out; } .mobile-nav.open { transform: translateX(0); } .no-scroll { overflow: hidden; } .lazy-image { transition: opacity 0.5s ease-in-out; } .lazy-image-placeholder { filter: blur(10px); transform: scale(1.1); } }
+        @layer utilities { .animate-gradient-bg { animation: gradient-animation 10s ease infinite; } .animate-fade-in { animation: fade-in 0.5s ease-in-out forwards; } .animate-slide-up { animation: slide-up 0.4s ease-out forwards; } .animate-pulse-subtle { animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; } .animate-shimmer { animation: shimmer 1.5s infinite linear; } }
+        @keyframes gradient-animation { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse-subtle { 50% { opacity: .8; transform: scale(1.02); } }
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
     </style>
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    colors: {
-                        primary: '#FF642C',   // Vibrant Orange
-                        secondary: '#FFB03A', // Warm Yellow
-                        accent: '#00A896',    // Teal
-                        dark: '#121212',      // Main dark background
-                        'dark-light': '#1E1E1E', // Lighter dark for cards
-                        'dark-lighter': '#2A2A2A',// Even lighter dark
-                        light: '#F8F9FA',     // Main light background
-                    },
-                    fontFamily: {
-                        sans: ['Poppins', 'sans-serif'],
-                        serif: ['Lora', 'serif'],
-                        heading: ['Poppins', 'sans-serif'],
-                    },
+                    colors: { primary: '#FF642C', secondary: '#FFB03A', accent: '#00A896', dark: '#121212', 'dark-light': '#1E1E1E', 'dark-lighter': '#2A2A2A', light: '#F8F9FA' },
+                    fontFamily: { sans: ['Poppins', 'sans-serif'], serif: ['Lora', 'serif'], heading: ['Poppins', 'sans-serif'] },
                 },
             },
         }
@@ -134,11 +53,11 @@
     "zustand": "https://aistudiocdn.com/zustand@^5.0.8",
     "razorpay": "https://aistudiocdn.com/razorpay@^2.9.6",
     "react-hook-form": "https://aistudiocdn.com/react-hook-form@^7.52.1",
+    "firebase-admin": "https://aistudiocdn.com/firebase-admin@^13.5.0",
     "cors": "https://aistudiocdn.com/cors@^2.8.5",
+    "firebase-functions/": "https://aistudiocdn.com/firebase-functions@^6.4.0/",
     "vite": "https://aistudiocdn.com/vite@^7.1.7",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.3",
-    "firebase-functions": "https://aistudiocdn.com/firebase-functions@^6.4.0",
-    "firebase-admin": "https://aistudiocdn.com/firebase-admin@^13.5.0"
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.3"
   }
 }
 </script>

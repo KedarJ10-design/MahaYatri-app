@@ -3,20 +3,25 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './hooks/useTheme';
+import { firebaseConfig } from './services/firebase';
 
-// --- SERVICE WORKER REGISTRATION ---
+// --- SERVICE WORKER REGISTRATION & CONFIGURATION ---
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
       .then(registration => {
-        console.log('Service Worker registered with scope:', registration.scope);
+        // Securely send Firebase config to the service worker once it's active.
+        navigator.serviceWorker.ready.then(() => {
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'SET_FIREBASE_CONFIG',
+                    config: firebaseConfig,
+                });
+            }
+        });
       })
       .catch(error => {
-        // The development environment can cause a cross-origin registration error.
-        // We catch this specific error to prevent it from breaking the app,
-        // while allowing other registration errors to be logged.
         const isCrossOriginError = error instanceof Error && error.message.includes("does not match the current origin");
-        
         if (isCrossOriginError) {
             console.warn(`Service Worker registration failed due to a cross-origin restriction. This is expected in some development environments. Offline features will be disabled.`);
         } else {
@@ -25,7 +30,7 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
-// ------------------------------------
+// ---------------------------------------------------
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

@@ -1,126 +1,159 @@
-
-import React, { useState, useMemo } from 'react';
-import { User, Guide, Booking, BookingStatus } from '../types';
-import { mockBookings, mockGuides } from '../services/mockData';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useMemo, useEffect } from 'react';
+import { User, Guide, Booking, BookingStatus, AvailabilityStatus } from '../types';
 import Button from './common/Button';
-import AvailabilityCalendar from './AvailabilityCalendar';
-import EarningsChart from './EarningsChart';
-import StarRating from './StarRating';
 import LazyImage from './common/LazyImage';
+import AvailabilityCalendar from './AvailabilityCalendar';
+import GuideAnalytics from './GuideAnalytics';
 
 interface GuideDashboardPageProps {
-  guideUser: User;
+  guideUser: User & Guide;
+  // FIX: Add 'bookings' and 'allUsers' to props to receive data from parent.
+  bookings: Booking[];
+  allUsers: User[];
 }
 
-const GuideDashboardPage: React.FC<GuideDashboardPageProps> = ({ guideUser }) => {
-  const { updateUser } = useAuth();
-  // Find the full guide profile from mock data
-  const guideProfile = mockGuides.find(g => g.id === guideUser.id);
-  
-  const bookings = useMemo(() => mockBookings.filter(b => b.guideId === guideUser.id), [guideUser.id]);
-  
-  const { pendingBookings, confirmedBookings, pastBookings } = useMemo(() => ({
-    pendingBookings: bookings.filter(b => b.status === BookingStatus.Pending),
-    confirmedBookings: bookings.filter(b => b.status === BookingStatus.Confirmed),
-    pastBookings: bookings.filter(b => b.status === BookingStatus.Completed || b.status === BookingStatus.Cancelled),
-  }), [bookings]);
+// FIX: Update BookingRow to accept 'allUsers' prop.
+const BookingRow: React.FC<{ booking: Booking, onUpdateStatus: (bookingId: string, status: BookingStatus) => void, allUsers: User[] }> = ({ booking, onUpdateStatus, allUsers }) => {
+    // FIX: Find the tourist from the 'allUsers' prop instead of using mock data.
+    const tourist = allUsers.find(u => u.id === booking.userId);
+    if (!tourist) return null;
 
-  const stats = useMemo(() => ({
-    totalEarnings: pastBookings.filter(b => b.status === BookingStatus.Completed).reduce((sum, b) => sum + b.totalPrice, 0),
-    upcomingBookingsCount: confirmedBookings.length,
-    pendingRequestsCount: pendingBookings.length,
-  }), [pastBookings, confirmedBookings, pendingBookings]);
+    const statusStyles: Record<BookingStatus, string> = {
+        [BookingStatus.Confirmed]: 'bg-blue-100 text-blue-800',
+        [BookingStatus.Completed]: 'bg-green-100 text-green-800',
+        [BookingStatus.Cancelled]: 'bg-red-100 text-red-800',
+        [BookingStatus.Pending]: 'bg-yellow-100 text-yellow-800',
+    };
 
-  const handleUpdateAvailability = async (guideId: string, newAvailability: any) => {
-    // Mock update
-    console.log("Updating availability for", guideId, newAvailability);
-    // In real app: await updateAvailabilityOnServer(guideId, newAvailability);
-    // For demo, we assume the parent state manages this. This is a stub.
-  };
-
-  const earningsData = [
-    { month: 'Jan', earnings: 12000 },
-    { month: 'Feb', earnings: 25000 },
-    { month: 'Mar', earnings: 18000 },
-    { month: 'Apr', earnings: 35000 },
-    { month: 'May', earnings: 42000 },
-    { month: 'Jun', earnings: 28000 },
-  ];
-
-  if (!guideProfile) {
-    return <div className="text-center p-8">Could not load your guide profile. Please contact support.</div>;
-  }
-  
-  const BookingRow: React.FC<{booking: Booking}> = ({booking}) => {
-    // In a real app, we'd fetch user data. Here we mock it.
-    const user = { name: `User ${booking.userId.slice(-1)}`, avatarUrl: `https://picsum.photos/seed/user-${booking.userId}/100/100` };
-    
     return (
-        <div className="bg-white dark:bg-dark-light p-4 rounded-lg flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-                <LazyImage src={user.avatarUrl} alt={user.name} className="w-12 h-12 rounded-full" placeholderClassName="rounded-full"/>
+        <tr className="border-b dark:border-gray-700">
+            <td className="p-4">
+                <div className="flex items-center gap-3">
+                    <LazyImage src={tourist.avatarUrl} alt={tourist.name} className="w-10 h-10 rounded-full" placeholderClassName="rounded-full" />
+                    <div>
+                        <p className="font-medium">{tourist.name}</p>
+                        <p className="text-sm text-gray-500">{tourist.email}</p>
+                    </div>
+                </div>
+            </td>
+            <td className="p-4">{new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}</td>
+            <td className="p-4">
+                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusStyles[booking.status]}`}>{booking.status}</span>
+            </td>
+            <td className="p-4">
+                {booking.status === BookingStatus.Pending && (
+                    <div className="flex gap-2">
+                        <Button size="sm" onClick={() => onUpdateStatus(booking.id, BookingStatus.Confirmed)}>Confirm</Button>
+                        <Button size="sm" variant="danger" onClick={() => onUpdateStatus(booking.id, BookingStatus.Cancelled)}>Decline</Button>
+                    </div>
+                )}
+                 {booking.status === BookingStatus.Confirmed && (
+                    <Button size="sm" onClick={() => onUpdateStatus(booking.id, BookingStatus.Completed)}>Mark as Completed</Button>
+                )}
+            </td>
+        </tr>
+    );
+};
+
+const GuideDashboardPage: React.FC<GuideDashboardPageProps> = ({ guideUser, bookings: allBookings, allUsers }) => {
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [bookings, setBookings] = useState<Booking[]>([]);
+
+    // FIX: Synchronize local bookings state with the passed 'allBookings' prop.
+    useEffect(() => {
+        setBookings(allBookings.filter(b => b.guideId === guideUser.id));
+    }, [allBookings, guideUser.id]);
+
+    const { upcomingBookings, pastBookings, pendingBookings } = useMemo(() => {
+        const now = new Date();
+        return {
+            pendingBookings: bookings.filter(b => b.status === BookingStatus.Pending),
+            upcomingBookings: bookings.filter(b => new Date(b.startDate) >= now && b.status === BookingStatus.Confirmed),
+            pastBookings: bookings.filter(b => new Date(b.startDate) < now || b.status === BookingStatus.Completed || b.status === BookingStatus.Cancelled),
+        };
+    }, [bookings]);
+
+    const handleUpdateAvailability = async (guideId: string, newAvailability: Record<string, AvailabilityStatus | undefined>) => {
+        // Mock update
+        console.log("Updating availability for", guideId, newAvailability);
+        // In a real app, you would call a service to update this in the backend.
+        // For the mock, we can't easily update the guideUser prop, so we'll just log it.
+        alert("Availability updated (check console). This is a mock action.");
+    };
+
+    const handleUpdateStatus = (bookingId: string, status: BookingStatus) => {
+        // FIX: Cast the updated booking object to 'Booking' to resolve the discriminated union type error.
+        setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } as Booking : b));
+        // In real app, call a service here: await updateBookingStatus(bookingId, status);
+        alert(`Booking status updated to ${status}. This is a mock action.`);
+    };
+
+    const TabButton: React.FC<{ name: string, label: string }> = ({ name, label }) => (
+        <button
+            onClick={() => setActiveTab(name)}
+            className={`px-4 py-2 font-semibold rounded-t-lg border-b-2 transition-colors ${activeTab === name ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-primary'}`}
+        >
+            {label}
+        </button>
+    );
+
+    return (
+        <div className="max-w-7xl mx-auto animate-fade-in space-y-8">
+            <div className="bg-white dark:bg-dark-light p-8 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-8">
+                <LazyImage src={guideUser.avatarUrl} alt={guideUser.name} className="w-32 h-32 rounded-full border-4 border-primary shadow-md" placeholderClassName="rounded-full" />
+                <div className="flex-grow text-center md:text-left">
+                    <h1 className="text-3xl font-bold font-heading">Welcome, {guideUser.name.split(' ')[0]}!</h1>
+                    <p className="text-gray-500">Here's your guide dashboard.</p>
+                </div>
+            </div>
+
+            <div className="border-b border-gray-200 dark:border-gray-700">
+                <TabButton name="dashboard" label="Dashboard" />
+                <TabButton name="bookings" label="Bookings" />
+                <TabButton name="availability" label="Availability" />
+            </div>
+
+            {activeTab === 'dashboard' && <GuideAnalytics guide={guideUser} bookings={bookings} />}
+
+            {activeTab === 'bookings' && (
+                <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
+                    <h2 className="text-2xl font-bold font-heading mb-4">Manage Bookings</h2>
+                    <div className="space-y-6">
+                         <div>
+                            <h3 className="text-xl font-bold mb-2">Pending Requests ({pendingBookings.length})</h3>
+                            {pendingBookings.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-gray-50 dark:bg-dark-lighter"><tr><th className="p-4">Tourist</th><th className="p-4">Dates</th><th className="p-4">Status</th><th className="p-4">Actions</th></tr></thead>
+                                    {/* FIX: Pass 'allUsers' prop to BookingRow. */}
+                                    <tbody>{pendingBookings.map(b => <BookingRow key={b.id} booking={b} onUpdateStatus={handleUpdateStatus} allUsers={allUsers} />)}</tbody>
+                                </table>
+                                </div>
+                            ) : <p className="text-gray-500">No pending requests.</p>}
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold mb-2">Upcoming Tours ({upcomingBookings.length})</h3>
+                             {upcomingBookings.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-gray-50 dark:bg-dark-lighter"><tr><th className="p-4">Tourist</th><th className="p-4">Dates</th><th className="p-4">Status</th><th className="p-4">Actions</th></tr></thead>
+                                    {/* FIX: Pass 'allUsers' prop to BookingRow. */}
+                                    <tbody>{upcomingBookings.map(b => <BookingRow key={b.id} booking={b} onUpdateStatus={handleUpdateStatus} allUsers={allUsers} />)}</tbody>
+                                </table>
+                                </div>
+                            ) : <p className="text-gray-500">No upcoming tours scheduled.</p>}
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {activeTab === 'availability' && (
                 <div>
-                    <p className="font-bold">{user.name}</p>
-                    <p className="text-sm text-gray-500">{new Date(booking.startDate).toLocaleDateString()} - {new Date(booking.endDate).toLocaleDateString()}</p>
+                    <AvailabilityCalendar guide={guideUser} onUpdateAvailability={handleUpdateAvailability} />
                 </div>
-            </div>
-            <div className="flex gap-2">
-                 {booking.status === BookingStatus.Pending && (
-                    <>
-                        <Button size="sm" variant="outline">Decline</Button>
-                        <Button size="sm">Accept</Button>
-                    </>
-                 )}
-            </div>
+            )}
         </div>
-    )
-  }
-
-  return (
-    <div className="space-y-8 animate-fade-in">
-      <h1 className="text-3xl font-bold font-heading">My Dashboard</h1>
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg text-center">
-            <p className="text-4xl font-bold text-primary">₹{stats.totalEarnings.toLocaleString()}</p>
-            <p className="text-gray-500 mt-2">Total Earnings (Completed)</p>
-        </div>
-        <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg text-center">
-            <p className="text-4xl font-bold text-secondary">{stats.upcomingBookingsCount}</p>
-            <p className="text-gray-500 mt-2">Upcoming Bookings</p>
-        </div>
-        <div className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg text-center">
-            <p className="text-4xl font-bold text-accent">{stats.pendingRequestsCount}</p>
-            <p className="text-gray-500 mt-2">Pending Requests</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-            {/* Pending Requests */}
-            <section>
-                <h2 className="text-2xl font-bold font-heading mb-4">Pending Requests</h2>
-                <div className="space-y-3">
-                    {pendingBookings.length > 0 ? (
-                        pendingBookings.map(b => <BookingRow key={b.id} booking={b} />)
-                    ) : <p className="text-gray-500 bg-white dark:bg-dark-light p-6 rounded-lg">No pending requests.</p>}
-                </div>
-            </section>
-             {/* Earnings */}
-            <section className="bg-white dark:bg-dark-light p-6 rounded-2xl shadow-lg">
-                <h2 className="text-2xl font-bold font-heading mb-4">Earnings Overview</h2>
-                <div className="h-64">
-                    <EarningsChart data={earningsData} />
-                </div>
-            </section>
-        </div>
-        <div className="lg:col-span-1">
-          <AvailabilityCalendar guide={guideProfile} onUpdateAvailability={handleUpdateAvailability} />
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default GuideDashboardPage;

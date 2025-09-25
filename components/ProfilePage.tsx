@@ -1,8 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
-import { User, Booking, BookingStatus, Reward, CompletedBooking } from '../types';
+import { User, Booking, BookingStatus, Reward, CompletedBooking, Guide } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { mockBookings, mockGuides, mockTouristUser } from '../services/mockData';
 import Button from './common/Button';
 import Input from './common/Input';
 import LazyImage from './common/LazyImage';
@@ -13,6 +11,9 @@ interface ProfilePageProps {
   onApply: () => void;
   allUsers: User[];
   onReview: (booking: Booking) => void;
+  // FIX: Add 'bookings' and 'guides' to props to make component data-driven.
+  bookings: Booking[];
+  guides: Guide[];
 }
 
 const rewards: Reward[] = [
@@ -27,8 +28,10 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; children: Reac
     </button>
 );
 
-const BookingCard: React.FC<{ booking: Booking, onReview: (booking: Booking) => void }> = ({ booking, onReview }) => {
-    const guide = mockGuides.find(g => g.id === booking.guideId);
+// FIX: Update BookingCard to accept a 'guides' prop.
+const BookingCard: React.FC<{ booking: Booking, onReview: (booking: Booking) => void, guides: Guide[] }> = ({ booking, onReview, guides }) => {
+    // FIX: Use the 'guides' prop to find the guide instead of mock data.
+    const guide = guides.find(g => g.id === booking.guideId);
     if (!guide) return null;
 
     const statusStyles: Record<BookingStatus, string> = {
@@ -58,7 +61,7 @@ const BookingCard: React.FC<{ booking: Booking, onReview: (booking: Booking) => 
 };
 
 
-const ProfilePage: React.FC<ProfilePageProps> = ({ user, onApply, allUsers, onReview }) => {
+const ProfilePage: React.FC<ProfilePageProps> = ({ user, onApply, allUsers, onReview, bookings, guides }) => {
   const { updateUser, redeemReward } = useAuth();
   const [activeTab, setActiveTab] = useState('bookings');
   const [isEditing, setIsEditing] = useState(false);
@@ -81,12 +84,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onApply, allUsers, onRe
   
   const { upcomingBookings, pastBookings } = useMemo(() => {
       const now = new Date();
-      const userBookings = mockBookings.filter(b => b.userId === user.id);
+      // FIX: Use the 'bookings' prop instead of mock data.
+      const userBookings = bookings.filter(b => b.userId === user.id);
       return {
           upcomingBookings: userBookings.filter(b => new Date(b.startDate) >= now && (b.status === BookingStatus.Confirmed || b.status === BookingStatus.Pending)),
           pastBookings: userBookings.filter(b => new Date(b.startDate) < now || b.status === BookingStatus.Completed || b.status === BookingStatus.Cancelled),
       }
-  }, [user.id]);
+  }, [user.id, bookings]);
 
   return (
     <div className="max-w-5xl mx-auto animate-fade-in space-y-8">
@@ -126,11 +130,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onApply, allUsers, onRe
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-bold mb-4">Upcoming Bookings</h2>
-              {upcomingBookings.length > 0 ? upcomingBookings.map(b => <BookingCard key={b.id} booking={b} onReview={onReview} />) : <p className="text-gray-500">No upcoming trips. Time to plan an adventure!</p>}
+              {upcomingBookings.length > 0 ? upcomingBookings.map(b => <BookingCard key={b.id} booking={b} onReview={onReview} guides={guides} />) : <p className="text-gray-500">No upcoming trips. Time to plan an adventure!</p>}
             </div>
              <div>
               <h2 className="text-xl font-bold mb-4">Past Bookings</h2>
-              {pastBookings.length > 0 ? pastBookings.map(b => <BookingCard key={b.id} booking={b} onReview={onReview} />) : <p className="text-gray-500">No past trips found.</p>}
+              {pastBookings.length > 0 ? pastBookings.map(b => <BookingCard key={b.id} booking={b} onReview={onReview} guides={guides} />) : <p className="text-gray-500">No past trips found.</p>}
             </div>
           </div>
         )}

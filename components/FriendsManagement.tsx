@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, FriendRequest } from '../types';
 // FIX: Import firebase to use for type annotations.
@@ -51,7 +52,7 @@ const FriendsManagement: React.FC<FriendsManagementProps> = ({ currentUser, allU
   }, [currentUser.id, addToast]);
 
   const { incoming, outgoing, friends, others } = useMemo(() => {
-    const friendIds = currentUser.friends;
+    const friendIds = currentUser.friends || [];
     const requestUserIds = new Set(requests.flatMap(r => [r.fromUserId, r.toUserId]));
 
     return {

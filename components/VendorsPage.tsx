@@ -1,7 +1,5 @@
-
 import React, { useState, useMemo } from 'react';
 import { Vendor } from '../types';
-import { mockVendors } from '../services/mockData';
 import VendorCard from './VendorCard';
 import VendorBookingModal from './VendorBookingModal';
 import Input from './common/Input';
@@ -13,8 +11,13 @@ export const priceRangeMap: Record<Vendor['priceRange'], { label: string; range:
   '$$$': { label: 'Premium', range: 'Over ₹1500' },
 };
 
-const VendorsPage: React.FC<{onBook: (vendor: Vendor) => void}> = ({ onBook }) => {
-  const [vendors, setVendors] = useState<Vendor[]>(mockVendors);
+// FIX: Define a props interface to accept 'vendors' from the parent.
+interface VendorsPageProps {
+  onBook: (vendor: Vendor) => void;
+  vendors: Vendor[];
+}
+
+const VendorsPage: React.FC<VendorsPageProps> = ({ onBook, vendors }) => {
   const [filters, setFilters] = useState({
     location: '',
     type: 'all',
@@ -26,6 +29,7 @@ const VendorsPage: React.FC<{onBook: (vendor: Vendor) => void}> = ({ onBook }) =
   };
 
   const filteredVendors = useMemo(() => {
+    // FIX: Use the 'vendors' prop for filtering instead of local state from mocks.
     return vendors.filter(vendor => {
       const locationMatch = filters.location === 'all' || vendor.location.toLowerCase().includes(filters.location.toLowerCase());
       const typeMatch = filters.type === 'all' || vendor.type === filters.type;
@@ -34,6 +38,7 @@ const VendorsPage: React.FC<{onBook: (vendor: Vendor) => void}> = ({ onBook }) =
     });
   }, [vendors, filters]);
 
+  // FIX: Use the 'vendors' prop to derive unique locations for the filter dropdown.
   const uniqueLocations = useMemo(() => ['all', ...new Set(vendors.map(v => v.location))].sort(), [vendors]);
 
   return (

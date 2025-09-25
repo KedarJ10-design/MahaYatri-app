@@ -12,7 +12,36 @@ export enum BookingStatus {
   Cancelled = 'CANCELLED',
 }
 
-// FIX: Added missing type definitions to be shared with cloud functions.
+// FIX: Added missing type definitions for Booking, DirectMessage, Conversation, and added fcmToken to the User type.
+export interface Booking {
+    id?: string;
+    userId: string;
+    guideId: string;
+    startDate: string;
+    endDate: string;
+    guests: number;
+    totalPrice: number;
+    status: BookingStatus;
+    pointsEarned: number;
+    hasBeenReviewed?: boolean;
+}
+
+export interface DirectMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface Conversation {
+  id: string;
+  guideId: string;
+  userId: string;
+  lastMessageTimestamp: number;
+  unreadCount: number;
+}
+
 export interface PlaceSuggestion {
   name: string;
   type: 'Attraction' | 'Hidden Gem' | 'Restaurant' | 'Activity';
@@ -41,6 +70,7 @@ export interface User {
   wishlist?: PlaceSuggestion[];
   followingGuideIds?: string[];
   friends?: string[];
+  fcmToken?: string;
 }
 
 export interface Guide {

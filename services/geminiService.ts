@@ -47,3 +47,8 @@ export const estimateTripCost = (itinerary: DetailedItinerary): Promise<CostEsti
 export const translateText = (text: string, targetLanguage: string): Promise<string> => {
   return callFunction<string>('translateText', { text, targetLanguage });
 };
+
+// FIX: Added missing 'submitBookingRequest' function to call the corresponding Firebase Function.
+export const submitBookingRequest = (params: any): Promise<{ success: boolean; bookingId: string; }> => {
+    return callFunction('submitBookingRequest', params);
+};

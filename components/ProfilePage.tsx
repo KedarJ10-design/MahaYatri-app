@@ -5,15 +5,12 @@ import Button from './common/Button';
 import Input from './common/Input';
 import LazyImage from './common/LazyImage';
 import FriendsManagement from './FriendsManagement';
+import { useAppStore } from '../store/appStore';
 
 interface ProfilePageProps {
   user: User;
   onApply: () => void;
-  allUsers: User[];
   onReview: (booking: Booking) => void;
-  // FIX: Add 'bookings' and 'guides' to props to make component data-driven.
-  bookings: Booking[];
-  guides: Guide[];
 }
 
 const rewards: Reward[] = [
@@ -28,9 +25,7 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; children: Reac
     </button>
 );
 
-// FIX: Update BookingCard to accept a 'guides' prop.
 const BookingCard: React.FC<{ booking: Booking, onReview: (booking: Booking) => void, guides: Guide[] }> = ({ booking, onReview, guides }) => {
-    // FIX: Use the 'guides' prop to find the guide instead of mock data.
     const guide = guides.find(g => g.id === booking.guideId);
     if (!guide) return null;
 
@@ -61,8 +56,9 @@ const BookingCard: React.FC<{ booking: Booking, onReview: (booking: Booking) => 
 };
 
 
-const ProfilePage: React.FC<ProfilePageProps> = ({ user, onApply, allUsers, onReview, bookings, guides }) => {
+const ProfilePage: React.FC<ProfilePageProps> = ({ user, onApply, onReview }) => {
   const { updateUser, redeemReward } = useAuth();
+  const { allUsers, bookings, guides } = useAppStore();
   const [activeTab, setActiveTab] = useState('bookings');
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -84,7 +80,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onApply, allUsers, onRe
   
   const { upcomingBookings, pastBookings } = useMemo(() => {
       const now = new Date();
-      // FIX: Use the 'bookings' prop instead of mock data.
       const userBookings = bookings.filter(b => b.userId === user.id);
       return {
           upcomingBookings: userBookings.filter(b => new Date(b.startDate) >= now && (b.status === BookingStatus.Confirmed || b.status === BookingStatus.Pending)),

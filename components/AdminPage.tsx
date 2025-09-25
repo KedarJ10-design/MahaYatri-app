@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { User, Guide, Vendor, Stay, Verifiable } from '../types';
 import Button from './common/Button';
 import Badge from './Badge';
+import { useAppStore } from '../store/appStore';
 
 type Tab = 'dashboard' | 'users' | 'guides' | 'vendors' | 'stays' | 'verifications';
 
@@ -11,21 +12,16 @@ const TabButton: React.FC<{ active: boolean, onClick: () => void, children: Reac
     </button>
 );
 
-// FIX: Define a props interface to accept data from the parent component.
 interface AdminPageProps {
-    users: User[];
-    guides: Guide[];
-    vendors: Vendor[];
-    stays: Stay[];
     onVerify: (item: Verifiable) => void;
     onAdd: (type: 'guide' | 'vendor' | 'stay') => void;
     onConfirm: (title: string, message: React.ReactNode, onConfirm: () => void, confirmButtonVariant?: 'primary' | 'danger') => void;
 }
 
-const AdminPage: React.FC<AdminPageProps> = ({ users, guides, vendors, stays, onVerify, onAdd, onConfirm }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ onVerify, onAdd, onConfirm }) => {
+    const { allUsers: users, guides, vendors, stays } = useAppStore();
     const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
-    // FIX: Use props for data instead of mock data.
     const allData = { users, guides, vendors, stays };
 
     const pendingVerifications = useMemo(() => [

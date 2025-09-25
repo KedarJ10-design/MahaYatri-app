@@ -4,13 +4,11 @@ import Button from './common/Button';
 import AvailabilityCalendar from './AvailabilityCalendar';
 import GuideAnalytics from './GuideAnalytics';
 import LazyImage from './common/LazyImage';
-import Badge from './common/Badge';
+import Badge from './Badge';
+import { useAppStore } from '../store/appStore';
 
 interface GuideDashboardPageProps {
   guideUser: User & Guide;
-  bookings: Booking[];
-  allUsers: User[];
-  reviews: Review[];
 }
 
 const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
@@ -50,7 +48,8 @@ const BookingRow: React.FC<{ booking: Booking, tourist?: User, onRespond: (booki
 };
 
 
-const GuideDashboardPage: React.FC<GuideDashboardPageProps> = ({ guideUser, bookings, allUsers, reviews }) => {
+const GuideDashboardPage: React.FC<GuideDashboardPageProps> = ({ guideUser }) => {
+    const { bookings, allUsers, reviews } = useAppStore();
     const [activeTab, setActiveTab] = useState('dashboard');
 
     const guideBookings = useMemo(() => bookings.filter(b => b.guideId === guideUser.id), [bookings, guideUser.id]);

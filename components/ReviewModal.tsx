@@ -41,12 +41,6 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ booking, onClose, addToast })
     setIsSubmitting(true);
     try {
       // Here you would call a function to submit the review to your backend
-      console.log({
-        bookingId: booking.id,
-        guideId: booking.guideId,
-        rating,
-        comment,
-      });
       // await submitReviewFunction({ ... });
       addToast('Thank you for your review!', 'success');
       onClose();

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, ReactNode } from 'react';
 import { Page, DetailedItinerary, ToastMessage, User, Booking, Stay, Vendor, Guide, Verifiable, Review } from './types';
 import { useAuth } from './contexts/AuthContext';
@@ -5,6 +6,7 @@ import { getLatestItinerary, saveItinerary } from './services/db';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { initializeFCM } from './services/pushNotificationService';
 import { db } from './services/firebase';
+import { useAppStore } from './store/appStore';
 
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -48,16 +50,10 @@ import { submitBookingRequest } from './services/geminiService';
 const App: React.FC = () => {
     const { user, loading: authLoading } = useAuth();
     const isOnline = useOnlineStatus();
+    const setData = useAppStore(state => state.setData);
 
-    // --- GLOBAL DATA STATE ---
+    // --- GLOBAL UI STATE ---
     const [dataLoading, setDataLoading] = useState(true);
-    const [guides, setGuides] = useState<Guide[]>([]);
-    const [vendors, setVendors] = useState<Vendor[]>([]);
-    const [stays, setStays] = useState<Stay[]>([]);
-    const [allUsers, setAllUsers] = useState<User[]>([]);
-    const [bookings, setBookings] = useState<Booking[]>([]);
-    const [reviews, setReviews] = useState<Review[]>([]);
-
     const [currentPage, setCurrentPage] = useState<Page>(Page.Home);
     const [itinerary, setItinerary] = useState<DetailedItinerary | null>(null);
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -83,45 +79,39 @@ const App: React.FC = () => {
         setToasts(prev => [...prev, { id, message, type }]);
     }, []);
 
-    // --- DATA FETCHING ---
+    // --- DATA FETCHING & STORE POPULATION ---
     useEffect(() => {
         if (user && db) {
             setDataLoading(true);
-            const collections = ['guides', 'vendors', 'stays', 'users', 'bookings', 'reviews'];
-            const setters: any = {
-                guides: setGuides,
-                vendors: setVendors,
-                stays: setStays,
-                users: setAllUsers,
-                bookings: setBookings,
-                reviews: setReviews,
-            };
+            // FIX: Use Firestore collection names. The type `string[]` prevents symbol conversion errors.
+            const collections: string[] = ['guides', 'vendors', 'stays', 'users', 'bookings', 'reviews'];
+            
+            const unsubscribes = collections.map(col => {
+                // FIX: `col` is now guaranteed to be a string, no `as string` cast needed.
+                let query = db.collection(col);
+                // Rename 'users' collection to 'allUsers' in store
+                const storeKey = col === 'users' ? 'allUsers' : col;
 
-            const unsubscribes = collections.map(col => 
-                db.collection(col).onSnapshot(
+                return query.onSnapshot(
                     snapshot => {
                         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        setters[col](data);
+                        setData({ [storeKey]: data } as any);
                     },
                     (error) => {
                         addToast(`Failed to load ${col}.`, 'error');
                     }
-                )
-            );
+                );
+            });
+
             setDataLoading(false); // Set loading to false after setting up listeners
 
             return () => unsubscribes.forEach(unsub => unsub());
         } else if (!user) {
             // Reset state when user logs out
             setDataLoading(false);
-            setGuides([]);
-            setVendors([]);
-            setStays([]);
-            setAllUsers([]);
-            setBookings([]);
-            setReviews([]);
+            setData({ guides: [], vendors: [], stays: [], allUsers: [], bookings: [], reviews: [] });
         }
-    }, [user, addToast]);
+    }, [user, addToast, setData]);
 
     useEffect(() => {
         if (user && user.role === 'guide' && currentPage !== Page.GuideDashboard) setCurrentPage(Page.GuideDashboard);
@@ -171,22 +161,22 @@ const App: React.FC = () => {
     
     const renderPage = () => {
         switch (currentPage) {
-            case Page.Home: return <HomePage onNavigate={handleNavigate} user={user} guides={guides} />;
+            case Page.Home: return <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} />;
             case Page.Explore: return <ExplorePage />;
-            case Page.Search: return <SearchPage onBook={setBookingModalGuide} guides={guides} allUsers={allUsers} />;
+            case Page.Search: return <SearchPage onBook={setBookingModalGuide} />;
             case Page.TripPlanner: return <TripPlannerPage onItineraryGenerated={handleItineraryGenerated} user={user} />;
             case Page.Itinerary: return itinerary ? <ItineraryPage itinerary={itinerary} onBack={() => setCurrentPage(Page.TripPlanner)} user={user} onEstimateCost={() => {}} onUpgrade={() => setIsUpgradeModalOpen(true)} onStartTrip={() => setIsLiveTripModalOpen(true)} /> : <TripPlannerPage onItineraryGenerated={handleItineraryGenerated} user={user} />;
-            case Page.Profile: return <ProfilePage user={user} onApply={() => setIsGuideAppModalOpen(true)} allUsers={allUsers} onReview={setReviewModalBooking} bookings={bookings} guides={guides} />;
-            case Page.Stays: return <StaysPage onBook={setStayBookingModalStay} stays={stays} />;
-            case Page.Vendors: return <VendorsPage onBook={setVendorBookingModalVendor} vendors={vendors} />;
-            case Page.Chat: return <ChatPage currentUser={user} allUsers={allUsers} />;
-            case Page.GuideDashboard: return user.role === 'guide' ? <GuideDashboardPage guideUser={user as User & Guide} bookings={bookings} allUsers={allUsers} reviews={reviews} /> : <HomePage onNavigate={handleNavigate} user={user} guides={guides} />;
-            case Page.Admin: return user.role === 'admin' ? <AdminPage users={allUsers} guides={guides} vendors={vendors} stays={stays} onVerify={setVerificationItem} onAdd={setAddItemType} onConfirm={() => {}} /> : <HomePage onNavigate={handleNavigate} user={user} guides={guides} />;
+            case Page.Profile: return <ProfilePage user={user} onApply={() => setIsGuideAppModalOpen(true)} onReview={setReviewModalBooking} />;
+            case Page.Stays: return <StaysPage onBook={setStayBookingModalStay} />;
+            case Page.Vendors: return <VendorsPage onBook={setVendorBookingModalVendor} />;
+            case Page.Chat: return <ChatPage currentUser={user} />;
+            case Page.GuideDashboard: return user.role === 'guide' ? <GuideDashboardPage guideUser={user as User & Guide} /> : <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} />;
+            case Page.Admin: return user.role === 'admin' ? <AdminPage onVerify={setVerificationItem} onAdd={setAddItemType} onConfirm={() => {}} /> : <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} />;
             case Page.About: return <AboutPage />;
             case Page.Contact: return <ContactPage />;
             case Page.PrivacyPolicy: return <PrivacyPolicyPage />;
             case Page.FAQ: return <FAQPage />;
-            default: return <HomePage onNavigate={handleNavigate} user={user} guides={guides} />;
+            default: return <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} />;
         }
     };
 

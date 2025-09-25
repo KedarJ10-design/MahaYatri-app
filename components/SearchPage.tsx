@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Guide, User, Review } from '../types';
 import GuideCard from './GuideCard';
@@ -8,15 +9,14 @@ import GuideDetailsModal from './GuideDetailsModal';
 import MapSearchView from './MapSearchView';
 import GuideCardSkeleton from './skeletons/GuideCardSkeleton';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppStore } from '../store/appStore';
 
 interface SearchPageProps {
   onBook: (guide: Guide) => void;
-  // FIX: Added 'guides' and 'allUsers' props to make the component data-driven.
-  guides: Guide[];
-  allUsers: User[];
 }
 
-const SearchPage: React.FC<SearchPageProps> = ({ onBook, guides: initialGuides, allUsers }) => {
+const SearchPage: React.FC<SearchPageProps> = ({ onBook }) => {
+  const { guides: initialGuides, allUsers } = useAppStore();
   const [guides, setGuides] = useState<Guide[]>([]);
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
@@ -33,14 +33,12 @@ const SearchPage: React.FC<SearchPageProps> = ({ onBook, guides: initialGuides, 
   useEffect(() => {
     setLoading(true);
     setTimeout(() => {
-        // FIX: Use the 'initialGuides' prop instead of mock data.
         setGuides(initialGuides);
         setLoading(false);
     }, 500);
   }, [initialGuides]);
 
   const { uniqueLocations, uniqueSpecialties, maxPriceValue } = useMemo(() => {
-    // FIX: Use the 'initialGuides' prop to derive filter options.
     const locations = [...new Set(initialGuides.map(g => g.location))].sort();
     const specialties = [...new Set(initialGuides.flatMap(g => g.specialties))].sort();
     const max = Math.max(...initialGuides.map(g => g.pricePerDay), 5000);
@@ -81,16 +79,16 @@ const SearchPage: React.FC<SearchPageProps> = ({ onBook, guides: initialGuides, 
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
               <select value={location} onChange={e => setLocation(e.target.value)} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light ...">
                 <option value="all">All Locations</option>
-                {/* FIX: Cast key to string to satisfy stricter type checking. */}
-                {uniqueLocations.map(loc => <option key={String(loc)} value={loc}>{loc}</option>)}
+                {/* FIX: Explicitly cast `loc` to string to resolve type errors. */}
+                {uniqueLocations.map(loc => <option key={String(loc)} value={String(loc)}>{String(loc)}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Specialty</label>
               <select value={specialty} onChange={e => setSpecialty(e.target.value)} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light ...">
                 <option value="all">All Specialties</option>
-                {/* FIX: Cast key to string to satisfy stricter type checking. */}
-                {uniqueSpecialties.map(spec => <option key={String(spec)} value={spec}>{spec}</option>)}
+                {/* FIX: Explicitly cast `spec` to string to resolve type errors. */}
+                {uniqueSpecialties.map(spec => <option key={String(spec)} value={String(spec)}>{String(spec)}</option>)}
               </select>
             </div>
             <PriceRangeSlider label="Max Price per Day" min={1000} max={maxPriceValue} step={500} value={maxPrice} onChange={setMaxPrice} />
@@ -142,7 +140,6 @@ const SearchPage: React.FC<SearchPageProps> = ({ onBook, guides: initialGuides, 
                 setSelectedGuide(null);
             }}
             user={user}
-            // FIX: Use the 'allUsers' prop instead of mock data.
             allUsers={allUsers}
             addToast={addToast}
         />

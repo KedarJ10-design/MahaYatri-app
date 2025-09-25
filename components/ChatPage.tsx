@@ -5,13 +5,14 @@ import Input from './common/Input';
 import Button from './common/Button';
 import LazyImage from './common/LazyImage';
 import Spinner from './common/Spinner';
+import { useAppStore } from '../store/appStore';
 
 interface ChatPageProps {
   currentUser: User;
-  allUsers: User[];
 }
 
-const ChatPage: React.FC<ChatPageProps> = ({ currentUser, allUsers }) => {
+const ChatPage: React.FC<ChatPageProps> = ({ currentUser }) => {
+  const { allUsers } = useAppStore();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -80,7 +81,6 @@ const ChatPage: React.FC<ChatPageProps> = ({ currentUser, allUsers }) => {
     if (!newMessage.trim() || !selectedConversationId) return;
 
     // This would call a cloud function in a real app
-    console.log("Sending message...", { conversationId: selectedConversationId, text: newMessage });
     
     setNewMessage('');
   };
@@ -160,4 +160,5 @@ const ChatPage: React.FC<ChatPageProps> = ({ currentUser, allUsers }) => {
   );
 };
 
+// FIX: Add default export to resolve import error in App.tsx.
 export default ChatPage;

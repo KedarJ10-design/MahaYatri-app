@@ -1,3 +1,4 @@
+
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 import Razorpay from "razorpay";
@@ -5,8 +6,6 @@ import * as cors from "cors";
 import * as functions from "firebase-functions/v1";
 import { GoogleGenAI, Type } from "@google/genai";
 import { Guide, User, UserRole, BookingStatus, FriendRequestStatus, DetailedItinerary, PlaceSuggestion, PlaceDetails, CostEstimate, ChatMessage, Booking, DirectMessage, Conversation } from "./types";
-// FIX: Import Response type from express to correctly type the response object in onRequest functions.
-import { Response } from "express";
 
 const corsHandler = cors({origin: true});
 
@@ -40,8 +39,7 @@ if (!GEMINI_API_KEY) {
 // ============================================================================
 // PAYMENT FUNCTIONS
 // ============================================================================
-// FIX: Explicitly type `req` and `res` to ensure compatibility with cors middleware and express response methods.
-export const createRazorpayOrder = functions.https.onRequest((req: functions.https.Request, res: Response) => {
+export const createRazorpayOrder = functions.https.onRequest((req: any, res: any) => {
   corsHandler(req, res, async () => {
     if (!razorpayInstance) {
         functions.logger.error("Razorpay is not configured.");
@@ -69,8 +67,7 @@ export const createRazorpayOrder = functions.https.onRequest((req: functions.htt
   });
 });
 
-// FIX: Explicitly type `req` and `res` to ensure compatibility with cors middleware and express response methods.
-export const verifyRazorpayPayment = functions.https.onRequest((req: functions.https.Request, res: Response) => {
+export const verifyRazorpayPayment = functions.https.onRequest((req: any, res: any) => {
   corsHandler(req, res, async () => {
     if (req.method !== "POST") {
       return res.status(405).json({error: "Method Not Allowed"});

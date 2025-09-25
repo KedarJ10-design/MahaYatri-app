@@ -1,16 +1,17 @@
+
 import React, { useState, useMemo } from 'react';
 import { Stay } from '../types';
 import StayCard from './StayCard';
 import Input from './common/Input';
 import PriceRangeSlider from './common/PriceRangeSlider';
+import { useAppStore } from '../store/appStore';
 
-// FIX: Define a props interface to accept 'stays' from the parent.
 interface StaysPageProps {
   onBook: (stay: Stay) => void;
-  stays: Stay[];
 }
 
-const StaysPage: React.FC<StaysPageProps> = ({ onBook, stays }) => {
+const StaysPage: React.FC<StaysPageProps> = ({ onBook }) => {
+  const { stays } = useAppStore();
   const [filters, setFilters] = useState({
     location: '',
     type: 'all',
@@ -26,7 +27,6 @@ const StaysPage: React.FC<StaysPageProps> = ({ onBook, stays }) => {
   };
   
   const { uniqueLocations, maxPriceValue } = useMemo(() => {
-    // FIX: Use the 'stays' prop to generate filter options.
     const locations = ['all', ...new Set(stays.map(s => s.location))].sort();
     const max = Math.max(...stays.map(s => s.pricePerNight), 10000);
     return {
@@ -36,7 +36,6 @@ const StaysPage: React.FC<StaysPageProps> = ({ onBook, stays }) => {
   }, [stays]);
 
   const filteredStays = useMemo(() => {
-    // FIX: Use the 'stays' prop for filtering.
     return stays.filter(stay => {
       const locationMatch = filters.location === 'all' || stay.location.toLowerCase().includes(filters.location.toLowerCase());
       const typeMatch = filters.type === 'all' || stay.type === filters.type;
@@ -53,7 +52,8 @@ const StaysPage: React.FC<StaysPageProps> = ({ onBook, stays }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
             <select name="location" value={filters.location} onChange={handleFilterChange} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light focus:ring-2 focus:ring-primary focus:border-transparent transition">
-              {uniqueLocations.map(loc => <option key={loc} value={loc}>{loc === 'all' ? 'All Locations' : loc}</option>)}
+              {/* FIX: Explicitly cast `loc` to string to resolve type errors. */}
+              {uniqueLocations.map(loc => <option key={String(loc)} value={String(loc)}>{loc === 'all' ? 'All Locations' : String(loc)}</option>)}
             </select>
           </div>
           <div>

@@ -1,9 +1,11 @@
+
 import React, { useState, useMemo } from 'react';
 import { Vendor } from '../types';
 import VendorCard from './VendorCard';
 import VendorBookingModal from './VendorBookingModal';
 import Input from './common/Input';
 import Button from './common/Button';
+import { useAppStore } from '../store/appStore';
 
 export const priceRangeMap: Record<Vendor['priceRange'], { label: string; range: string }> = {
   '$': { label: 'Budget', range: 'Under ₹500' },
@@ -11,13 +13,12 @@ export const priceRangeMap: Record<Vendor['priceRange'], { label: string; range:
   '$$$': { label: 'Premium', range: 'Over ₹1500' },
 };
 
-// FIX: Define a props interface to accept 'vendors' from the parent.
 interface VendorsPageProps {
   onBook: (vendor: Vendor) => void;
-  vendors: Vendor[];
 }
 
-const VendorsPage: React.FC<VendorsPageProps> = ({ onBook, vendors }) => {
+const VendorsPage: React.FC<VendorsPageProps> = ({ onBook }) => {
+  const { vendors } = useAppStore();
   const [filters, setFilters] = useState({
     location: '',
     type: 'all',
@@ -29,7 +30,6 @@ const VendorsPage: React.FC<VendorsPageProps> = ({ onBook, vendors }) => {
   };
 
   const filteredVendors = useMemo(() => {
-    // FIX: Use the 'vendors' prop for filtering instead of local state from mocks.
     return vendors.filter(vendor => {
       const locationMatch = filters.location === 'all' || vendor.location.toLowerCase().includes(filters.location.toLowerCase());
       const typeMatch = filters.type === 'all' || vendor.type === filters.type;
@@ -38,7 +38,6 @@ const VendorsPage: React.FC<VendorsPageProps> = ({ onBook, vendors }) => {
     });
   }, [vendors, filters]);
 
-  // FIX: Use the 'vendors' prop to derive unique locations for the filter dropdown.
   const uniqueLocations = useMemo(() => ['all', ...new Set(vendors.map(v => v.location))].sort(), [vendors]);
 
   return (
@@ -49,7 +48,8 @@ const VendorsPage: React.FC<VendorsPageProps> = ({ onBook, vendors }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
             <select name="location" value={filters.location} onChange={handleFilterChange} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light focus:ring-2 focus:ring-primary focus:border-transparent transition">
-              {uniqueLocations.map(loc => <option key={loc} value={loc}>{loc === 'all' ? 'All Locations' : loc}</option>)}
+              {/* FIX: Explicitly cast `loc` to string to resolve type errors. */}
+              {uniqueLocations.map(loc => <option key={String(loc)} value={String(loc)}>{loc === 'all' ? 'All Locations' : String(loc)}</option>)}
             </select>
           </div>
           <div>

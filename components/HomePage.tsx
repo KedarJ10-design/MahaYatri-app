@@ -3,18 +3,19 @@ import { User, Guide, Page } from '../types';
 import Button from './common/Button';
 import GuideCard from './GuideCard';
 import GuideDetailsModal from './GuideDetailsModal';
+import { useAppStore } from '../store/appStore';
 
 interface HomePageProps {
   user: User;
   onNavigate: (page: Page) => void;
-  // FIX: Added 'guides' prop to receive guide data from the parent component.
-  guides: Guide[];
+  onBook: (guide: Guide) => void;
+  addToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ user, onNavigate, guides }) => {
+const HomePage: React.FC<HomePageProps> = ({ user, onNavigate, onBook, addToast }) => {
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
+  const { guides, allUsers } = useAppStore();
 
-  // FIX: Use the 'guides' prop instead of mock data.
   const featuredGuides = guides.filter(g => g.rating >= 4.9).slice(0, 4);
 
   return (
@@ -83,16 +84,16 @@ const HomePage: React.FC<HomePageProps> = ({ user, onNavigate, guides }) => {
             guide={selectedGuide} 
             onClose={() => setSelectedGuide(null)} 
             onBook={() => {
-                // In a real app, this would open the booking modal
-                console.log("Booking guide:", selectedGuide.name);
+                onBook(selectedGuide);
+                setSelectedGuide(null); 
             }}
             user={user}
-            allUsers={[]}
-            addToast={() => {}}
+            allUsers={allUsers}
+            addToast={addToast}
         />
       )}
     </div>
   );
 };
-
+// FIX: Add default export to resolve import error in App.tsx.
 export default HomePage;

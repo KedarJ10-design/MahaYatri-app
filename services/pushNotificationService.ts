@@ -21,7 +21,6 @@ export const initializeFCM = async (userId: string) => {
       // 1. Request Permission from the user
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        console.log('Notification permission granted.');
         
         // 2. Get the FCM registration token from the browser's push service
         const token = await messaging.getToken({
@@ -31,20 +30,13 @@ export const initializeFCM = async (userId: string) => {
         });
 
         if (token) {
-          console.log('FCM Token:', token);
           // 3. Save the token to the user's profile in Firestore
           const userDocRef = db.collection('users').doc(userId);
           await userDocRef.update({ fcmToken: token });
-        } else {
-          console.log('No registration token available. Request permission to generate one.');
         }
-      } else {
-        console.log('Unable to get permission to notify.');
       }
     } catch (err) {
       console.error('An error occurred while initializing FCM. ', err);
     }
-  } else {
-      console.log('Firebase Messaging is not supported in this browser.');
   }
 };

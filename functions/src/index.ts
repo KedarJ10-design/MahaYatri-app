@@ -5,6 +5,8 @@ import * as cors from "cors";
 import * as functions from "firebase-functions/v1";
 import { GoogleGenAI, Type } from "@google/genai";
 import { Guide, User, UserRole, BookingStatus, FriendRequestStatus, DetailedItinerary, PlaceSuggestion, PlaceDetails, CostEstimate, ChatMessage, Booking, DirectMessage, Conversation } from "./types";
+// FIX: Import Response type from express to correctly type the response object in onRequest functions.
+import { Response } from "express";
 
 const corsHandler = cors({origin: true});
 
@@ -38,8 +40,8 @@ if (!GEMINI_API_KEY) {
 // ============================================================================
 // PAYMENT FUNCTIONS
 // ============================================================================
-// FIX: Remove explicit types for req and res to allow for correct type inference.
-export const createRazorpayOrder = functions.https.onRequest((req, res) => {
+// FIX: Explicitly type `req` and `res` to ensure compatibility with cors middleware and express response methods.
+export const createRazorpayOrder = functions.https.onRequest((req: functions.https.Request, res: Response) => {
   corsHandler(req, res, async () => {
     if (!razorpayInstance) {
         functions.logger.error("Razorpay is not configured.");
@@ -67,8 +69,8 @@ export const createRazorpayOrder = functions.https.onRequest((req, res) => {
   });
 });
 
-// FIX: Remove explicit types for req and res to allow for correct type inference.
-export const verifyRazorpayPayment = functions.https.onRequest((req, res) => {
+// FIX: Explicitly type `req` and `res` to ensure compatibility with cors middleware and express response methods.
+export const verifyRazorpayPayment = functions.https.onRequest((req: functions.https.Request, res: Response) => {
   corsHandler(req, res, async () => {
     if (req.method !== "POST") {
       return res.status(405).json({error: "Method Not Allowed"});
@@ -236,40 +238,69 @@ export const chatWithAI = functions.https.onCall(async (data: any, context: func
 // PUSH NOTIFICATION TRIGGERS
 // ============================================================================
 
-const sendNotification = async (userId: string, title: string, body: string, link: string) => {
+export const sendPushNotification = functions.firestore.document("users/{userId}/notifications/{notificationId}").onCreate(async (snap, context) => {
+    const { userId } = context.params;
+    const notification = snap.data();
+
+    if (!notification) {
+        functions.logger.error("Notification document data was empty.", { userId, notificationId: snap.id });
+        return;
+    }
+    
     try {
         const userDoc = await db.collection("users").doc(userId).get();
         if (!userDoc.exists) {
             functions.logger.warn(`User document ${userId} not found for notification.`);
             return;
         }
+        
         const token = userDoc.data()?.fcmToken;
         if (token) {
-            const payload: admin.messaging.Message = { token, notification: { title, body }, webpush: { notification: { icon: "https://mahayatri.app/pwa-192x192.png" }, fcmOptions: { link } } };
+            const payload: admin.messaging.Message = {
+                token,
+                notification: {
+                    title: notification.title || "New Notification",
+                    body: notification.body || "You have a new update from MahaYatri.",
+                },
+                webpush: {
+                    notification: {
+                        icon: "https://mahayatri.app/pwa-192x192.png",
+                    },
+                    fcmOptions: {
+                        link: notification.link || "/",
+                    },
+                },
+            };
             await admin.messaging().send(payload);
             functions.logger.info(`Notification sent to user ${userId}`);
         } else {
             functions.logger.info(`User ${userId} does not have an FCM token.`);
         }
     } catch (error) {
-        functions.logger.error(`Failed to send notification to user ${userId}`, error);
+        functions.logger.error(`Failed to send notification to user ${userId}`, { error, notificationId: snap.id });
         if ((error as any).code === "messaging/registration-token-not-registered") {
             await db.collection("users").doc(userId).update({ fcmToken: admin.firestore.FieldValue.delete() });
         }
     }
-};
+});
+
 
 export const onNewBookingNotification = functions.firestore.document("bookings/{bookingId}").onCreate(async (snap) => {
     const booking = snap.data() as Booking;
     try {
         const touristDoc = await db.collection("users").doc(booking.userId).get();
         const touristName = touristDoc.data()?.name || "A tourist";
-        const title = "New Booking Request!";
-        const body = `${touristName} has requested a tour from ${booking.startDate} to ${booking.endDate}.`;
-        const link = "/dashboard";
-        await sendNotification(booking.guideId, title, body, link);
+        
+        const notificationData = {
+            title: "New Booking Request!",
+            body: `${touristName} has requested a tour from ${booking.startDate} to ${booking.endDate}.`,
+            link: "/dashboard",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        await db.collection("users").doc(booking.guideId).collection("notifications").add(notificationData);
     } catch (error) {
-        functions.logger.error("Error sending new booking notification:", { bookingId: snap.id, error });
+        functions.logger.error("Error creating new booking notification document:", { bookingId: snap.id, error });
     }
 });
 
@@ -278,15 +309,21 @@ export const onNewMessageNotification = functions.firestore.document("messages/{
     try {
         const conversationDoc = await db.collection("conversations").doc(message.conversationId).get();
         if (!conversationDoc.exists) return;
+        
         const conversation = conversationDoc.data() as Conversation;
         const senderDoc = await db.collection("users").doc(message.senderId).get();
         const senderName = senderDoc.data()?.name || "Someone";
         const recipientId = conversation.userId === message.senderId ? conversation.guideId : conversation.userId;
-        const title = `New message from ${senderName}`;
-        const body = message.text;
-        const link = "/chat";
-        await sendNotification(recipientId, title, body, link);
+
+        const notificationData = {
+            title: `New message from ${senderName}`,
+            body: message.text,
+            link: "/chat",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        await db.collection("users").doc(recipientId).collection("notifications").add(notificationData);
     } catch (error) {
-        functions.logger.error("Error sending new message notification:", { messageId: snap.id, error });
+        functions.logger.error("Error creating new message notification document:", { messageId: snap.id, error });
     }
 });

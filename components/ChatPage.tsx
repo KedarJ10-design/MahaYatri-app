@@ -1,46 +1,87 @@
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Conversation, DirectMessage } from '../types';
-import { mockConversations, mockMessages, mockGuides, otherUsers } from '../services/mockData';
+import { db } from '../services/firebase';
 import Input from './common/Input';
 import Button from './common/Button';
 import LazyImage from './common/LazyImage';
+import Spinner from './common/Spinner';
 
 interface ChatPageProps {
   currentUser: User;
   allUsers: User[];
 }
 
-const ChatPage: React.FC<ChatPageProps> = ({ currentUser }) => {
-  const [conversations, setConversations] = useState<Conversation[]>(mockConversations);
-  const [messages, setMessages] = useState<DirectMessage[]>(mockMessages);
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(conversations[0]?.id || null);
+const ChatPage: React.FC<ChatPageProps> = ({ currentUser, allUsers }) => {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<DirectMessage[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const allUsers = [currentUser, ...mockGuides, ...otherUsers];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, selectedConversationId]);
-
-  const selectedConversation = conversations.find(c => c.id === selectedConversationId);
-  const currentMessages = messages.filter(m => m.conversationId === selectedConversationId);
   
+  // Fetch conversations for the current user
+  useEffect(() => {
+    if (!db) {
+        setLoading(false);
+        return;
+    }
+    setLoading(true);
+
+    const queries = [
+        db.collection('conversations').where('userId', '==', currentUser.id),
+        db.collection('conversations').where('guideId', '==', currentUser.id)
+    ];
+
+    const unsubs = queries.map(query => {
+        return query.onSnapshot(snapshot => {
+            const fetchedConvos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
+            setConversations(prev => {
+                const convoMap = new Map(prev.map(c => [c.id, c]));
+                fetchedConvos.forEach(c => convoMap.set(c.id, c));
+                const sorted = Array.from(convoMap.values()).sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+                if (!selectedConversationId && sorted.length > 0) {
+                    setSelectedConversationId(sorted[0].id);
+                }
+                return sorted;
+            });
+            setLoading(false);
+        });
+    });
+
+    return () => unsubs.forEach(unsub => unsub());
+  }, [currentUser.id, selectedConversationId]);
+
+  // Fetch messages for the selected conversation
+  useEffect(() => {
+    if (!selectedConversationId || !db) {
+        setMessages([]);
+        return;
+    }
+
+    const query = db.collection('messages')
+                    .where('conversationId', '==', selectedConversationId)
+                    .orderBy('timestamp', 'asc');
+    
+    const unsubscribe = query.onSnapshot(snapshot => {
+        const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DirectMessage));
+        setMessages(msgs);
+    });
+
+    return () => unsubscribe();
+  }, [selectedConversationId]);
+
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversationId) return;
 
-    const newMsg: DirectMessage = {
-      id: `msg-${Date.now()}`,
-      conversationId: selectedConversationId,
-      senderId: currentUser.id,
-      text: newMessage,
-      timestamp: Date.now(),
-    };
+    // This would call a cloud function in a real app
+    console.log("Sending message...", { conversationId: selectedConversationId, text: newMessage });
     
-    setMessages(prev => [...prev, newMsg]);
     setNewMessage('');
   };
   
@@ -48,6 +89,8 @@ const ChatPage: React.FC<ChatPageProps> = ({ currentUser }) => {
     const otherId = convo.userId === currentUser.id ? convo.guideId : convo.userId;
     return allUsers.find(u => u.id === otherId);
   };
+
+  const selectedConversation = conversations.find(c => c.id === selectedConversationId);
 
   return (
     <div className="flex h-[calc(100vh-150px)] bg-white dark:bg-dark-light rounded-2xl shadow-lg overflow-hidden">
@@ -57,7 +100,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ currentUser }) => {
             <h2 className="text-xl font-bold">Messages</h2>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {conversations.map(convo => {
+          {loading ? <div className="p-4"><Spinner /></div> : conversations.map(convo => {
             const otherUser = getOtherParticipant(convo);
             if (!otherUser) return null;
             return (
@@ -69,7 +112,6 @@ const ChatPage: React.FC<ChatPageProps> = ({ currentUser }) => {
                 <LazyImage src={otherUser.avatarUrl} alt={otherUser.name} className="w-12 h-12 rounded-full" placeholderClassName="rounded-full" />
                 <div className="flex-1 overflow-hidden">
                   <p className="font-semibold truncate">{otherUser.name}</p>
-                  {/* FIX: Replaced `findLast` with a compatible alternative to support older JS runtimes. */}
                   <p className="text-sm text-gray-500 truncate">{[...messages].reverse().find(m => m.conversationId === convo.id)?.text}</p>
                 </div>
               </button>
@@ -87,7 +129,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ currentUser }) => {
                <h3 className="font-bold">{getOtherParticipant(selectedConversation)?.name}</h3>
             </header>
             <main className="flex-1 p-6 overflow-y-auto space-y-4">
-              {currentMessages.map(msg => {
+              {messages.map(msg => {
                 const isSender = msg.senderId === currentUser.id;
                 const sender = allUsers.find(u => u.id === msg.senderId);
                 return (
@@ -110,7 +152,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ currentUser }) => {
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500">
-            <p>Select a conversation to start chatting.</p>
+            {loading ? <Spinner /> : <p>Select a conversation to start chatting.</p>}
           </div>
         )}
       </div>

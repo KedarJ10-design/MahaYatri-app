@@ -95,5 +95,5 @@ const HomePage: React.FC<HomePageProps> = ({ user, onNavigate, onBook, addToast 
     </div>
   );
 };
-// FIX: Add default export to resolve import error in App.tsx.
+
 export default HomePage;

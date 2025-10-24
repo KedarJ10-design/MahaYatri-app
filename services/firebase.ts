@@ -1,3 +1,4 @@
+
 // FIX: Define types for Vite environment variables to resolve TypeScript errors
 // when `vite/client` types are not available in the compilation context.
 interface ImportMetaEnv {

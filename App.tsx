@@ -52,6 +52,7 @@ const App: React.FC = () => {
     const { user, loading: authLoading } = useAuth();
     const isOnline = useOnlineStatus();
     const setData = useAppStore(state => state.setData);
+    const { allUsers } = useAppStore();
 
     // --- GLOBAL UI STATE ---
     const [dataLoading, setDataLoading] = useState(true);
@@ -162,7 +163,7 @@ const App: React.FC = () => {
     
     const renderPage = () => {
         switch (currentPage) {
-            case Page.Home: return <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} />;
+            case Page.Home: return <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} allUsers={allUsers} />;
             case Page.Explore: return <ExplorePage />;
             case Page.Search: return <SearchPage onBook={setBookingModalGuide} addToast={addToast} />;
             case Page.TripPlanner: return <TripPlannerPage onItineraryGenerated={handleItineraryGenerated} user={user} />;
@@ -171,13 +172,13 @@ const App: React.FC = () => {
             case Page.Stays: return <StaysPage onBook={setStayBookingModalStay} />;
             case Page.Vendors: return <VendorsPage onBook={setVendorBookingModalVendor} />;
             case Page.Chat: return <ChatPage currentUser={user} />;
-            case Page.GuideDashboard: return user.role === 'guide' ? <GuideDashboardPage guideUser={user as User & Guide} /> : <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} />;
-            case Page.Admin: return user.role === 'admin' ? <AdminPage onVerify={setVerificationItem} onAdd={setAddItemType} onConfirm={() => {}} /> : <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} />;
+            case Page.GuideDashboard: return user.role === 'guide' ? <GuideDashboardPage guideUser={user as User & Guide} /> : <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} allUsers={allUsers} />;
+            case Page.Admin: return user.role === 'admin' ? <AdminPage onVerify={setVerificationItem} onAdd={setAddItemType} onConfirm={() => {}} /> : <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} allUsers={allUsers} />;
             case Page.About: return <AboutPage />;
             case Page.Contact: return <ContactPage />;
             case Page.PrivacyPolicy: return <PrivacyPolicyPage />;
             case Page.FAQ: return <FAQPage />;
-            default: return <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} />;
+            default: return <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} allUsers={allUsers} />;
         }
     };
 

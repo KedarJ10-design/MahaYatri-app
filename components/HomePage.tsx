@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { User, Guide, Page } from '../types';
 import Button from './common/Button';
@@ -10,11 +11,12 @@ interface HomePageProps {
   onNavigate: (page: Page) => void;
   onBook: (guide: Guide) => void;
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  allUsers: User[];
 }
 
-const HomePage: React.FC<HomePageProps> = ({ user, onNavigate, onBook, addToast }) => {
+const HomePage: React.FC<HomePageProps> = ({ user, onNavigate, onBook, addToast, allUsers }) => {
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
-  const { guides, allUsers } = useAppStore();
+  const { guides } = useAppStore();
 
   const featuredGuides = guides.filter(g => g.rating >= 4.9).slice(0, 4);
 

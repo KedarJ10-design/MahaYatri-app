@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import Button from './common/Button';
@@ -197,7 +198,7 @@ const GuideApplicationModal: React.FC<GuideApplicationModalProps> = ({ onClose, 
                     {...register('contactUnlockPrice', {
                         required: 'Unlock price is required.',
                         valueAsNumber: true,
-                        min: { value: 0, message: 'Price cannot be negative.' }
+                        min: { value: 1, message: 'Price must be a positive number.' }
                     })}
                     aria-invalid={errors.contactUnlockPrice ? 'true' : 'false'}
                   />

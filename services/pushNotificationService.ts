@@ -18,15 +18,22 @@ export const initializeFCM = async (userId: string) => {
       const app = !firebase.apps.length ? firebase.initializeApp(firebaseConfig) : firebase.app();
       const messaging = app.messaging();
 
+      // Safely access environment variables
+      const env = (import.meta as any)?.env ?? {};
+      const vapidKey = env.VITE_FIREBASE_VAPID_KEY;
+      
+      if (!vapidKey || vapidKey.includes('your-fcm-vapid-key')) {
+        console.error("VAPID key for push notifications is not configured. Please set VITE_FIREBASE_VAPID_KEY in your .env.local file (see .env.example). Notifications will not work.");
+        return;
+      }
+
       // 1. Request Permission from the user
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
         
         // 2. Get the FCM registration token from the browser's push service
         const token = await messaging.getToken({
-            // THIS VAPID KEY IS PUBLIC AND SAFE TO EXPOSE. It's used by push services to identify the application server.
-            // Replace with your actual VAPID key from Project Settings > Cloud Messaging > Web configuration
-            vapidKey: 'BJEzX-1fA3oJg...YOUR_PUBLIC_VAPID_KEY_HERE...mY5c' 
+            vapidKey: vapidKey
         });
 
         if (token) {

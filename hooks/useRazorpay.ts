@@ -12,8 +12,17 @@ const getFunctionsUrl = () => {
     }
 };
 
-// This is ONLY for the client-side Razorpay SDK. A public test key is acceptable.
-const RAZORPAY_KEY_ID = 'rzp_test_1ABC2def3GHI4j';
+// Safely access environment variables.
+const env = (import.meta as any)?.env ?? {};
+
+// This is ONLY for the client-side Razorpay SDK. It is now loaded from environment variables.
+// Use a public test key as a fallback for development convenience.
+const RAZORPAY_KEY_ID = env.VITE_RAZORPAY_KEY_ID || 'rzp_test_ILz5t0j6X3n52v';
+
+if (!env.VITE_RAZORPAY_KEY_ID || env.VITE_RAZORPAY_KEY_ID.includes('your-razorpay-key-id')) {
+    console.warn("Using Razorpay test key. Please set VITE_RAZORPAY_KEY_ID in your .env.local file for production (see .env.example).");
+}
+
 
 declare global {
   interface Window {
@@ -77,6 +86,10 @@ export const useRazorpay = () => {
     const openCheckout = useCallback(async (options: CheckoutOptions): Promise<any> => {
         await loadScript('https://checkout.razorpay.com/v1/checkout.js');
         const baseUrl = getFunctionsUrl();
+        
+        if (!RAZORPAY_KEY_ID) {
+            throw new Error("Razorpay is not configured. Cannot open checkout.");
+        }
 
         return new Promise(async (resolve, reject) => {
             try {

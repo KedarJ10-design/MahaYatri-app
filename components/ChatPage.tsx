@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Conversation, DirectMessage } from '../types';
-import { db } from '../services/firebase';
+import { db, functions } from '../services/firebase';
 import Input from './common/Input';
 import Button from './common/Button';
 import LazyImage from './common/LazyImage';
@@ -76,13 +76,22 @@ const ChatPage: React.FC<ChatPageProps> = ({ currentUser }) => {
   }, [selectedConversationId]);
 
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedConversationId) return;
+    if (!newMessage.trim() || !selectedConversationId || !functions) return;
 
-    // This would call a cloud function in a real app
-    
+    const messageToSend = newMessage;
     setNewMessage('');
+
+    try {
+        const sendMessageFn = functions.httpsCallable('sendMessage');
+        await sendMessageFn({ conversationId: selectedConversationId, text: messageToSend });
+    } catch (error) {
+        console.error("Error sending message:", error);
+        // Restore message on failure
+        setNewMessage(messageToSend);
+        // Ideally, show a toast message here.
+    }
   };
   
   const getOtherParticipant = (convo: Conversation) => {

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, ReactNode } from 'react';
 import { Page, DetailedItinerary, ToastMessage, User, Booking, Stay, Vendor, Guide, Verifiable, Review } from './types';
 import { useAuth } from './contexts/AuthContext';
@@ -163,7 +164,7 @@ const App: React.FC = () => {
         switch (currentPage) {
             case Page.Home: return <HomePage onNavigate={handleNavigate} user={user} onBook={setBookingModalGuide} addToast={addToast} />;
             case Page.Explore: return <ExplorePage />;
-            case Page.Search: return <SearchPage onBook={setBookingModalGuide} />;
+            case Page.Search: return <SearchPage onBook={setBookingModalGuide} addToast={addToast} />;
             case Page.TripPlanner: return <TripPlannerPage onItineraryGenerated={handleItineraryGenerated} user={user} />;
             case Page.Itinerary: return itinerary ? <ItineraryPage itinerary={itinerary} onBack={() => setCurrentPage(Page.TripPlanner)} user={user} onEstimateCost={() => {}} onUpgrade={() => setIsUpgradeModalOpen(true)} onStartTrip={() => setIsLiveTripModalOpen(true)} /> : <TripPlannerPage onItineraryGenerated={handleItineraryGenerated} user={user} />;
             case Page.Profile: return <ProfilePage user={user} onApply={() => setIsGuideAppModalOpen(true)} onReview={setReviewModalBooking} />;

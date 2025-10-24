@@ -73,6 +73,8 @@ export interface User {
   fcmToken?: string;
 }
 
+export type AvailabilityStatus = 'unavailable_morning' | 'unavailable_afternoon' | 'unavailable_full';
+
 export interface Guide {
   id: string;
   name: string;
@@ -91,7 +93,7 @@ export interface Guide {
     email: string;
   };
   contactUnlockPrice: number;
-  availability?: Record<string, boolean>;
+  availability?: Record<string, AvailabilityStatus>;
   followersCount?: number;
 }
 

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Guide, User, Review } from '../types';
 import GuideCard from './GuideCard';
@@ -13,9 +14,10 @@ import { useAppStore } from '../store/appStore';
 
 interface SearchPageProps {
   onBook: (guide: Guide) => void;
+  addToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
-const SearchPage: React.FC<SearchPageProps> = ({ onBook }) => {
+const SearchPage: React.FC<SearchPageProps> = ({ onBook, addToast }) => {
   const { guides: initialGuides, allUsers } = useAppStore();
   const [guides, setGuides] = useState<Guide[]>([]);
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
@@ -60,11 +62,6 @@ const SearchPage: React.FC<SearchPageProps> = ({ onBook }) => {
     });
   }, [guides, searchTerm, location, specialty, maxPrice]);
   
-  const addToast = (message: string, type: 'success' | 'error' | 'info') => {
-    // In a real app, this would be passed down or come from a context.
-    console.log(`[Toast: ${type}] ${message}`);
-  }
-
   if (!user) return null;
 
   return (

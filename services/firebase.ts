@@ -7,6 +7,8 @@ interface ImportMetaEnv {
     readonly VITE_FIREBASE_STORAGE_BUCKET: string;
     readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string;
     readonly VITE_FIREBASE_APP_ID: string;
+    readonly VITE_RAZORPAY_KEY_ID: string;
+    readonly VITE_FIREBASE_VAPID_KEY: string;
 }
 
 // FIX: Augment the global ImportMeta type to include the `env` property.
@@ -45,9 +47,9 @@ export let firebaseInitializationError: string | null = null;
 
 // Initialize Firebase only once
 if (!firebase.apps.length) {
-  // A simple check for placeholder values
-  if (!firebaseConfig.apiKey || String(firebaseConfig.apiKey).startsWith("VITE_")) {
-      firebaseInitializationError = "Firebase configuration is missing. The app will run in offline/mock mode. Please create a .env.local file with your project credentials.";
+  // Check if the config is missing or still has placeholder values
+  if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("your-firebase-api-key")) {
+      firebaseInitializationError = "Firebase configuration is missing. Please copy '.env.example' to '.env.local' and add your project credentials. The app will run in offline/mock mode.";
       console.warn(firebaseInitializationError);
   } else {
     try {

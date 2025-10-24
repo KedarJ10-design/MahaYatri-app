@@ -1,4 +1,5 @@
 
+
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 import Razorpay from "razorpay";
@@ -194,25 +195,123 @@ const callAI = async (prompt: string, schema?: any) => {
             config.responseSchema = schema;
         }
         const response = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt, config });
-        return response.text;
+        const jsonText = response.text.trim();
+        return JSON.parse(jsonText);
     } catch (error) {
         functions.logger.error("Gemini API call failed:", error);
         throw new functions.https.HttpsError("internal", "The AI service failed to respond.");
     }
 };
 
+export const generateCustomItinerary = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+    ensureAuthenticated(context);
+    const { days, mustVisit, interests, adults, children, seniors, budgetStyle } = data;
+    const prompt = `Create a detailed ${days}-day travel itinerary for a trip to ${mustVisit[0].destination}, Maharashtra. The group consists of ${adults} adults, ${children} children, and ${seniors} seniors. Their interests include ${interests.join(", ")}. The budget is ${budgetStyle}. If provided, they must visit ${mustVisit[0].name}. For each day, provide a date (starting from tomorrow), and a series of time-slotted activities. For each slot, include the place name, a brief activity description, any relevant notes, an estimated cost in INR, and the travel details (from, to, distance in km, duration in minutes) from the previous slot. Also provide a brief overall summary and a total estimated cost for the trip. The response must be valid JSON.`;
+    
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            summary: { type: Type.STRING },
+            days: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        day: { type: Type.INTEGER },
+                        date: { type: Type.STRING, description: "Format: YYYY-MM-DD" },
+                        slots: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    timeWindow: { type: Type.STRING },
+                                    place: { type: Type.OBJECT, properties: { name: { type: Type.STRING } } },
+                                    activity: { type: Type.STRING },
+                                    notes: { type: Type.STRING },
+                                    estimated_cost: { type: Type.NUMBER },
+                                    travel: { type: Type.OBJECT, properties: { from: { type: Type.STRING }, to: { type: Type.STRING }, distance_km: { type: Type.NUMBER }, duration_min: { type: Type.INTEGER } } }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            total_estimated_cost: { type: Type.NUMBER }
+        }
+    };
+    return callAI(prompt, schema);
+});
+
+export const generatePlaceSuggestions = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+    ensureAuthenticated(context);
+    const { destination } = data;
+    const prompt = `Suggest 6 interesting and diverse place suggestions for a tourist visiting ${destination}, Maharashtra. Include a mix of Attractions, Hidden Gems, Restaurants, and Activities. For each, provide a name, type, a brief, compelling description, and the destination. The response must be valid JSON.`;
+    const schema = {
+        type: Type.ARRAY,
+        items: {
+            type: Type.OBJECT,
+            properties: {
+                name: { type: Type.STRING },
+                type: { type: Type.STRING, enum: ['Attraction', 'Hidden Gem', 'Restaurant', 'Activity'] },
+                description: { type: Type.STRING },
+                destination: { type: Type.STRING }
+            }
+        }
+    };
+    return callAI(prompt, schema);
+});
+
+export const generatePlaceDetails = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+    ensureAuthenticated(context);
+    const { placeName, destination } = data;
+    const prompt = `Provide detailed information for a tourist about "${placeName}" in ${destination}, Maharashtra. Include the best time to visit, a brief weather overview, a list of local specialties to try there, and a few practical tips for visitors. The response must be valid JSON.`;
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            bestTimeToVisit: { type: Type.STRING },
+            weather: { type: Type.STRING },
+            specialties: { type: Type.ARRAY, items: { type: Type.STRING } },
+            tips: { type: Type.ARRAY, items: { type: Type.STRING } }
+        }
+    };
+    return callAI(prompt, schema);
+});
+
+export const estimateTripCost = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+    ensureAuthenticated(context);
+    const { itinerary } = data as { itinerary: DetailedItinerary };
+    const prompt = `Based on the following itinerary, provide a cost breakdown for a solo traveler with a mid-range budget. Categorize the costs into 'accommodation', 'food', 'localTransport', and 'activities'. For each category, provide a total amount in INR and a brief description of what it covers. Itinerary: ${JSON.stringify(itinerary)}. The response must be valid JSON.`;
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            accommodation: { type: Type.OBJECT, properties: { amount: { type: Type.NUMBER }, description: { type: Type.STRING } } },
+            food: { type: Type.OBJECT, properties: { amount: { type: Type.NUMBER }, description: { type: Type.STRING } } },
+            localTransport: { type: Type.OBJECT, properties: { amount: { type: Type.NUMBER }, description: { type: Type.STRING } } },
+            activities: { type: Type.OBJECT, properties: { amount: { type: Type.NUMBER }, description: { type: Type.STRING } } }
+        }
+    };
+    return callAI(prompt, schema);
+});
+
+export const translateText = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+    ensureAuthenticated(context);
+    const { text, targetLanguage } = data;
+    const prompt = `Translate the following text to ${targetLanguage}: "${text}"`;
+    if (!ai) {
+        throw new functions.https.HttpsError("failed-precondition", "AI service is not configured.");
+    }
+    const response = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt });
+    return response.text;
+});
+
+
 export const chatWithAI = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
     const uid = ensureAuthenticated(context);
     try {
-        const { history, message } = data as { history: ChatMessage[], message: string };
+        const { history, message, user } = data as { history: ChatMessage[], message: string, user: User };
         if (!message) {
             throw new functions.https.HttpsError("invalid-argument", "A new message is required.");
         }
-        const userDoc = await db.collection("users").doc(uid).get();
-        if (!userDoc.exists) {
-            throw new functions.https.HttpsError("not-found", "User not found.");
-        }
-        const user = userDoc.data() as User;
         const preferences = user.preferences.length > 0 ? `Their travel interests include ${user.preferences.join(", ")}.` : "";
         const systemInstruction = `You are a personal travel assistant for ${user.name}. ${preferences} Use this information to give them tailored advice for exploring Maharashtra, India. Be friendly, concise, and engaging. Use markdown for formatting.`;
         const contents = history.map((msg) => ({ role: msg.sender === "user" ? "user" : "model", parts: [{ text: msg.text }] }));
@@ -228,6 +327,89 @@ export const chatWithAI = functions.https.onCall(async (data: any, context: func
         if (error instanceof functions.https.HttpsError) throw error;
         throw new functions.https.HttpsError("internal", "Failed to get chat response.");
     }
+});
+
+// ============================================================================
+// SOCIAL & Q&A FUNCTIONS
+// ============================================================================
+export const postQuestion = functions.https.onCall(async (data, context) => {
+    const userId = ensureAuthenticated(context);
+    const { guideId, questionText } = data;
+    if (!guideId || !questionText) {
+        throw new functions.https.HttpsError("invalid-argument", "Missing guideId or questionText.");
+    }
+    const question = { guideId, userId, questionText, createdAt: admin.firestore.FieldValue.serverTimestamp() };
+    await db.collection("questions").add(question);
+    return { success: true };
+});
+
+export const postAnswer = functions.https.onCall(async (data, context) => {
+    const userId = ensureAuthenticated(context);
+    const { questionId, answerText } = data;
+    if (!questionId || !answerText) {
+        throw new functions.https.HttpsError("invalid-argument", "Missing questionId or answerText.");
+    }
+    const questionRef = db.collection("questions").doc(questionId);
+    const questionDoc = await questionRef.get();
+    if (!questionDoc.exists || questionDoc.data()?.guideId !== userId) {
+        throw new functions.https.HttpsError("permission-denied", "You cannot answer this question.");
+    }
+    await questionRef.update({ answerText, answeredAt: admin.firestore.FieldValue.serverTimestamp() });
+    return { success: true };
+});
+
+export const sendFriendRequest = functions.https.onCall(async (data, context) => {
+    const fromUserId = ensureAuthenticated(context);
+    const { toUserId } = data;
+    if (!toUserId) throw new functions.https.HttpsError("invalid-argument", "toUserId is required.");
+    if (fromUserId === toUserId) throw new functions.https.HttpsError("invalid-argument", "You cannot send a friend request to yourself.");
+
+    const request = { fromUserId, toUserId, status: "pending", createdAt: admin.firestore.FieldValue.serverTimestamp() };
+    await db.collection("friendRequests").add(request);
+    return { success: true };
+});
+
+export const respondToFriendRequest = functions.https.onCall(async (data, context) => {
+    const userId = ensureAuthenticated(context);
+    const { requestId, response } = data as { requestId: string, response: 'accepted' | 'declined' };
+    if (!requestId || !response) throw new functions.https.HttpsError("invalid-argument", "requestId and response are required.");
+
+    const requestRef = db.collection("friendRequests").doc(requestId);
+    const requestDoc = await requestRef.get();
+    if (!requestDoc.exists || requestDoc.data()?.toUserId !== userId) {
+        throw new functions.https.HttpsError("permission-denied", "This request is not for you.");
+    }
+    
+    if (response === 'accepted') {
+        const fromUserId = requestDoc.data()?.fromUserId;
+        const fromUserRef = db.collection("users").doc(fromUserId);
+        const toUserRef = db.collection("users").doc(userId);
+        
+        const batch = db.batch();
+        batch.update(fromUserRef, { friends: admin.firestore.FieldValue.arrayUnion(userId) });
+        batch.update(toUserRef, { friends: admin.firestore.FieldValue.arrayUnion(fromUserId) });
+        batch.update(requestRef, { status: "accepted" });
+        await batch.commit();
+    } else {
+        await requestRef.update({ status: "declined" });
+    }
+    return { success: true };
+});
+
+export const removeFriend = functions.https.onCall(async (data, context) => {
+    const userId = ensureAuthenticated(context);
+    const { friendId } = data;
+    if (!friendId) throw new functions.https.HttpsError("invalid-argument", "friendId is required.");
+
+    const userRef = db.collection("users").doc(userId);
+    const friendRef = db.collection("users").doc(friendId);
+
+    const batch = db.batch();
+    batch.update(userRef, { friends: admin.firestore.FieldValue.arrayRemove(friendId) });
+    batch.update(friendRef, { friends: admin.firestore.FieldValue.arrayRemove(userId) });
+    await batch.commit();
+
+    return { success: true };
 });
 
 

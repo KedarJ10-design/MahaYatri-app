@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { User, Guide, Vendor, Stay, Verifiable } from '../types';
 import Button from './common/Button';
@@ -19,7 +20,10 @@ interface AdminPageProps {
 }
 
 const AdminPage: React.FC<AdminPageProps> = ({ onVerify, onAdd, onConfirm }) => {
-    const { allUsers: users, guides, vendors, stays } = useAppStore();
+    const users = useAppStore(state => state.allUsers);
+    const guides = useAppStore(state => state.guides);
+    const vendors = useAppStore(state => state.vendors);
+    const stays = useAppStore(state => state.stays);
     const [activeTab, setActiveTab] = useState<Tab>('dashboard');
 
     const allData = { users, guides, vendors, stays };

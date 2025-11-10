@@ -135,7 +135,13 @@ export const applyToBeGuide = functions.https.onCall(async (data: any, context: 
             throw new functions.https.HttpsError("not-found", "User profile not found.");
         }
         const { name, avatarUrl } = userDoc.data() as { name: string, avatarUrl: string };
-        const newGuideApplication = { id: userId, name, avatarUrl, location: data.location, languages: data.languages, specialties: data.specialties, bio: data.bio, pricePerDay: Number(data.pricePerDay), gallery: data.gallery, contactInfo: data.contactInfo, contactUnlockPrice: Number(data.contactUnlockPrice), verificationStatus: "pending" as const, rating: 0, reviewCount: 0, followersCount: 0, coordinates: { lat: 0, lng: 0 }, availability: {} };
+        
+        // TODO: Implement a geocoding service (like Google Geocoding API) to convert the 'location' string
+        // into latitude and longitude coordinates for accurate map placement.
+        // For now, it defaults to 0,0.
+        const coordinates = { lat: 0, lng: 0 };
+
+        const newGuideApplication = { id: userId, name, avatarUrl, location: data.location, languages: data.languages, specialties: data.specialties, bio: data.bio, pricePerDay: Number(data.pricePerDay), gallery: data.gallery, contactInfo: data.contactInfo, contactUnlockPrice: Number(data.contactUnlockPrice), verificationStatus: "pending" as const, rating: 0, reviewCount: 0, followersCount: 0, coordinates, availability: {} };
         const batch = db.batch();
         batch.set(db.collection("guides").doc(userId), newGuideApplication);
         batch.update(db.collection("users").doc(userId), { hasPendingApplication: true });
@@ -184,12 +190,15 @@ export const sendMessage = functions.https.onCall(async (data: any, context: fun
 // AI FUNCTIONS
 // ============================================================================
 
-const callAI = async (prompt: string, schema?: any) => {
+const callAI = async (prompt: string, configOverrides?: any, schema?: any) => {
     if (!ai) {
         throw new functions.https.HttpsError("failed-precondition", "AI service is not configured.");
     }
     try {
-        const config: any = { temperature: 0.7 };
+        const config: any = { 
+            temperature: 0.7,
+            ...configOverrides 
+        };
         if (schema) {
             config.responseMimeType = "application/json";
             config.responseSchema = schema;
@@ -206,7 +215,7 @@ const callAI = async (prompt: string, schema?: any) => {
 export const generateCustomItinerary = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
     ensureAuthenticated(context);
     const { days, mustVisit, interests, adults, children, seniors, budgetStyle } = data;
-    const prompt = `Create a detailed ${days}-day travel itinerary for a trip to ${mustVisit[0].destination}, Maharashtra. The group consists of ${adults} adults, ${children} children, and ${seniors} seniors. Their interests include ${interests.join(", ")}. The budget is ${budgetStyle}. If provided, they must visit ${mustVisit[0].name}. For each day, provide a date (starting from tomorrow), and a series of time-slotted activities. For each slot, include the place name, a brief activity description, any relevant notes, an estimated cost in INR, and the travel details (from, to, distance in km, duration in minutes) from the previous slot. Also provide a brief overall summary and a total estimated cost for the trip. The response must be valid JSON.`;
+    const prompt = `Create a detailed ${days}-day travel itinerary for a trip to ${mustVisit[0].destination}, Maharashtra. The group consists of ${adults} adults, ${children} children, and ${seniors} seniors. Their interests include ${interests.join(", ")}. The budget is ${budgetStyle}. If provided, they must visit ${mustVisit[0].name}. For each day, provide a date (starting from tomorrow), and a series of time-slotted activities. For each slot, include the place name and its Google Place ID for accurate mapping, a brief activity description, any relevant notes, an estimated cost in INR, and the travel details (from, to, distance in km, duration in minutes) from the previous slot. Also provide a brief overall summary and a total estimated cost for the trip. The response must be valid JSON.`;
     
     const schema = {
         type: Type.OBJECT,
@@ -225,7 +234,7 @@ export const generateCustomItinerary = functions.https.onCall(async (data: any, 
                                 type: Type.OBJECT,
                                 properties: {
                                     timeWindow: { type: Type.STRING },
-                                    place: { type: Type.OBJECT, properties: { name: { type: Type.STRING } } },
+                                    place: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, id: { type: Type.STRING, description: "The Google Place ID for mapping." } } },
                                     activity: { type: Type.STRING },
                                     notes: { type: Type.STRING },
                                     estimated_cost: { type: Type.NUMBER },
@@ -239,7 +248,7 @@ export const generateCustomItinerary = functions.https.onCall(async (data: any, 
             total_estimated_cost: { type: Type.NUMBER }
         }
     };
-    return callAI(prompt, schema);
+    return callAI(prompt, { tools: [{googleMaps: {}}] }, schema);
 });
 
 export const generatePlaceSuggestions = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
@@ -258,7 +267,7 @@ export const generatePlaceSuggestions = functions.https.onCall(async (data: any,
             }
         }
     };
-    return callAI(prompt, schema);
+    return callAI(prompt, {}, schema);
 });
 
 export const generatePlaceDetails = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
@@ -274,7 +283,7 @@ export const generatePlaceDetails = functions.https.onCall(async (data: any, con
             tips: { type: Type.ARRAY, items: { type: Type.STRING } }
         }
     };
-    return callAI(prompt, schema);
+    return callAI(prompt, {}, schema);
 });
 
 export const estimateTripCost = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
@@ -290,7 +299,7 @@ export const estimateTripCost = functions.https.onCall(async (data: any, context
             activities: { type: Type.OBJECT, properties: { amount: { type: Type.NUMBER }, description: { type: Type.STRING } } }
         }
     };
-    return callAI(prompt, schema);
+    return callAI(prompt, {}, schema);
 });
 
 export const translateText = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
@@ -320,7 +329,7 @@ export const chatWithAI = functions.https.onCall(async (data: any, context: func
         if (!ai) {
              throw new functions.https.HttpsError("failed-precondition", "AI service is not configured.");
         }
-        const response = await ai.models.generateContent({ model: "gemini-2.5-flash", contents, config: { systemInstruction }});
+        const response = await ai.models.generateContent({ model: "gemini-2.5-flash-lite", contents, config: { systemInstruction }});
         return response.text;
     } catch (error) {
         functions.logger.error("Error in chatWithAI function:", error);

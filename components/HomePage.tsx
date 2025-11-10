@@ -16,7 +16,7 @@ interface HomePageProps {
 
 const HomePage: React.FC<HomePageProps> = ({ user, onNavigate, onBook, addToast, allUsers }) => {
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
-  const { guides } = useAppStore();
+  const guides = useAppStore(state => state.guides);
 
   const featuredGuides = guides.filter(g => g.rating >= 4.9).slice(0, 4);
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { User, Booking, BookingStatus, Reward, CompletedBooking, Guide } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -58,7 +59,9 @@ const BookingCard: React.FC<{ booking: Booking, onReview: (booking: Booking) => 
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ user, onApply, onReview }) => {
   const { updateUser, redeemReward } = useAuth();
-  const { allUsers, bookings, guides } = useAppStore();
+  const allUsers = useAppStore(state => state.allUsers);
+  const bookings = useAppStore(state => state.bookings);
+  const guides = useAppStore(state => state.guides);
   const [activeTab, setActiveTab] = useState('bookings');
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({

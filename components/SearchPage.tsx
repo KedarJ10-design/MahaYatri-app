@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Guide, User, Review } from '../types';
 import GuideCard from './GuideCard';
@@ -18,7 +17,8 @@ interface SearchPageProps {
 }
 
 const SearchPage: React.FC<SearchPageProps> = ({ onBook, addToast }) => {
-  const { guides: initialGuides, allUsers } = useAppStore();
+  const initialGuides = useAppStore(state => state.guides);
+  const allUsers = useAppStore(state => state.allUsers);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [selectedGuide, setSelectedGuide] = useState<Guide | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
@@ -41,8 +41,10 @@ const SearchPage: React.FC<SearchPageProps> = ({ onBook, addToast }) => {
   }, [initialGuides]);
 
   const { uniqueLocations, uniqueSpecialties, maxPriceValue } = useMemo(() => {
-    const locations = [...new Set(initialGuides.map(g => g.location))].sort();
-    const specialties = [...new Set(initialGuides.flatMap(g => g.specialties))].sort();
+    // FIX: Explicitly type Set to resolve 'unknown' type inference issue.
+    const locations = [...new Set<string>(initialGuides.map(g => g.location))].sort();
+    // FIX: Explicitly type Set to resolve 'unknown' type inference issue.
+    const specialties = [...new Set<string>(initialGuides.flatMap(g => g.specialties))].sort();
     const max = Math.max(...initialGuides.map(g => g.pricePerDay), 5000);
     return {
       uniqueLocations: locations,
@@ -76,16 +78,14 @@ const SearchPage: React.FC<SearchPageProps> = ({ onBook, addToast }) => {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
               <select value={location} onChange={e => setLocation(e.target.value)} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light ...">
                 <option value="all">All Locations</option>
-                {/* FIX: Explicitly cast `loc` to string to resolve type errors. */}
-                {uniqueLocations.map(loc => <option key={String(loc)} value={String(loc)}>{String(loc)}</option>)}
+                {uniqueLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Specialty</label>
               <select value={specialty} onChange={e => setSpecialty(e.target.value)} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light ...">
                 <option value="all">All Specialties</option>
-                {/* FIX: Explicitly cast `spec` to string to resolve type errors. */}
-                {uniqueSpecialties.map(spec => <option key={String(spec)} value={String(spec)}>{String(spec)}</option>)}
+                {uniqueSpecialties.map(spec => <option key={spec} value={spec}>{spec}</option>)}
               </select>
             </div>
             <PriceRangeSlider label="Max Price per Day" min={1000} max={maxPriceValue} step={500} value={maxPrice} onChange={setMaxPrice} />

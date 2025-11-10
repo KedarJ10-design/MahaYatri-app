@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 import { DetailedItinerary, ItineraryDayDetailed, ItinerarySlot, TravelInfo, User } from '../types';
 import Button from './common/Button';
@@ -35,7 +37,21 @@ const SlotCard: React.FC<{ slot: ItinerarySlot }> = ({ slot }) => (
             </p>
             {slot.estimated_cost > 0 && <Badge color="green">₹{slot.estimated_cost}</Badge>}
         </div>
-        <h4 className="text-xl font-semibold mt-2 font-heading">{slot.place.name}</h4>
+        <h4 className="text-xl font-semibold mt-2 font-heading">
+            {slot.place.id ? (
+                <a 
+                    href={`https://www.google.com/maps/place/?q=place_id:${slot.place.id}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="hover:underline text-primary transition-colors"
+                    title="View on Google Maps"
+                >
+                    {slot.place.name}
+                </a>
+            ) : (
+                slot.place.name
+            )}
+        </h4>
         <p className="text-gray-700 dark:text-gray-300 mt-1">{slot.activity}</p>
         <p className="text-sm text-gray-500 dark:text-gray-400 italic mt-2 p-3 bg-gray-100 dark:bg-dark-light rounded-md">"{slot.notes}"</p>
         {slot.travel.duration_min > 0 && <TravelInfoCard travel={slot.travel} />}
@@ -89,38 +105,28 @@ const ItineraryPage: React.FC<ItineraryPageProps> = ({ itinerary, onBack, user, 
                 </div>
             </div>
              <div className="mt-6 p-4 bg-primary/10 rounded-lg flex items-center justify-between flex-wrap gap-4">
-                <div>
-                    <h3 className="text-xl font-bold font-heading text-dark dark:text-light">Total Estimated Cost</h3>
-                    <p className="text-2xl font-extrabold text-primary">₹{itinerary.total_estimated_cost.toLocaleString('en-IN')}</p>
+                <div className="flex-grow">
+                    <h3 className="font-bold">Total Estimated Cost</h3>
+                    <p className="text-2xl font-extrabold text-primary">₹{itinerary.total_estimated_cost.toLocaleString()}</p>
                 </div>
                 {user.isPro ? (
-                    <Button onClick={onEstimateCost} variant="secondary">Get Cost Breakdown</Button>
+                    <Button onClick={onEstimateCost}>View Detailed Breakdown</Button>
                 ) : (
-                    <Button onClick={onUpgrade} variant="secondary" className="animate-pulse-subtle">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
-                        </svg>
-                        Upgrade for Cost Breakdown
-                    </Button>
+                    <Button onClick={onUpgrade}>Upgrade to Pro for Cost Insights</Button>
                 )}
-             </div>
+            </div>
         </div>
-        
+
         {itinerary.mapImageUrl && (
-            <div className="mb-12">
-                <h2 className="text-2xl font-bold font-heading mb-4 text-center">Destination Overview</h2>
-                <LazyImage 
-                    src={itinerary.mapImageUrl}
-                    alt={`Map of ${itinerary.days[0].slots[0].place.name}`}
-                    className="w-full h-64 md:h-96 rounded-2xl shadow-lg object-cover"
-                    placeholderClassName="rounded-2xl"
-                    sizes="(max-width: 768px) 100vw, 896px"
-                />
+            <div className="my-8 rounded-2xl overflow-hidden shadow-lg">
+                <LazyImage src={itinerary.mapImageUrl} alt={`Map of ${itinerary.days[0].slots[0].place.name}`} className="w-full h-64 object-cover" sizes="(max-width: 768px) 100vw, 50vw"/>
             </div>
         )}
-        
+
         <div className="space-y-12">
-            {itinerary.days.map(day => <DayTimeline key={day.day} day={day} />)}
+            {itinerary.days.map((day) => (
+                <DayTimeline key={day.day} day={day} />
+            ))}
         </div>
     </div>
   );

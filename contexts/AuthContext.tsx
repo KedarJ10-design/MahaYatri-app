@@ -3,6 +3,7 @@ import { User, Reward } from '../types';
 import { 
   auth,
   db, 
+  googleProvider,
   browserLocalPersistence,
   browserSessionPersistence,
   type FirebaseUser,
@@ -15,6 +16,7 @@ interface AuthContextType {
   signIn: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   updateUser: (updatedData: Partial<User>) => Promise<void>;
   redeemReward: (reward: Reward) => Promise<void>;
   error: string | null;
@@ -71,6 +73,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (doc.exists) {
               setUser({ id: doc.id, ...doc.data() } as User);
             } else {
+              // This handles the case where a user signs in with Google for the first time
+              // but their document hasn't been created yet.
               const newUserProfile = createNewUserProfile(firebaseUser);
               userDocRef.set(newUserProfile).catch(setErr => {
                 setError("Could not create your user profile.");
@@ -118,6 +122,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const signInWithGoogle = async () => {
+    setLoading(true);
+    setError(null);
+    if (!auth || !db) {
+        const authError = "Google Sign-In is unavailable due to a configuration error.";
+        setError(authError);
+        setLoading(false);
+        throw new Error(authError);
+    }
+    try {
+        const result = await auth.signInWithPopup(googleProvider);
+        const isNewUser = result.additionalUserInfo?.isNewUser;
+        const firebaseUser = result.user;
+
+        if (isNewUser && firebaseUser) {
+            const newUserProfile = createNewUserProfile(firebaseUser);
+            await db.collection('users').doc(firebaseUser.uid).set(newUserProfile);
+        }
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'An unknown error occurred during Google sign-in.';
+        setError(message);
+        setLoading(false);
+        throw err;
+    }
+  };
+
   const signUp = async (name: string, email: string, password: string) => {
     setLoading(true);
     setError(null);
@@ -137,7 +167,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const newUserProfile = createNewUserProfile(firebaseUser, name);
       await db.collection('users').doc(firebaseUser.uid).set(newUserProfile);
 
-    } catch (err: unknown) {
+    } catch (err: unknown)
+ {
       const message = err instanceof Error ? err.message : 'An unknown error occurred during sign-up.';
       setError(message);
       setLoading(false);
@@ -190,6 +221,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     signIn,
     signUp,
     signOut: signOutUser,
+    signInWithGoogle,
     updateUser,
     redeemReward,
     error,

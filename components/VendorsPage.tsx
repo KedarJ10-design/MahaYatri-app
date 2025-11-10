@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo } from 'react';
 import { Vendor } from '../types';
 import VendorCard from './VendorCard';
@@ -19,7 +18,7 @@ interface VendorsPageProps {
 }
 
 const VendorsPage: React.FC<VendorsPageProps> = ({ onBook }) => {
-  const { vendors } = useAppStore();
+  const vendors = useAppStore(state => state.vendors);
   const [filters, setFilters] = useState({
     location: '',
     type: 'all',
@@ -39,7 +38,8 @@ const VendorsPage: React.FC<VendorsPageProps> = ({ onBook }) => {
     });
   }, [vendors, filters]);
 
-  const uniqueLocations = useMemo(() => ['all', ...new Set(vendors.map(v => v.location))].sort(), [vendors]);
+  // FIX: Explicitly type Set to resolve 'unknown' type inference issue.
+  const uniqueLocations = useMemo(() => ['all', ...new Set<string>(vendors.map(v => v.location))].sort(), [vendors]);
 
   return (
     <div className="animate-fade-in">
@@ -49,8 +49,7 @@ const VendorsPage: React.FC<VendorsPageProps> = ({ onBook }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
             <select name="location" value={filters.location} onChange={handleFilterChange} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light focus:ring-2 focus:ring-primary focus:border-transparent transition">
-              {/* FIX: Explicitly cast `loc` to string to resolve type errors. */}
-              {uniqueLocations.map(loc => <option key={String(loc)} value={String(loc)}>{loc === 'all' ? 'All Locations' : String(loc)}</option>)}
+              {uniqueLocations.map(loc => <option key={loc} value={loc}>{loc === 'all' ? 'All Locations' : loc}</option>)}
             </select>
           </div>
           <div>

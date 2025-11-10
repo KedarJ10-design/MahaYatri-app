@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { User, Guide, Booking, Review, BookingStatus, AvailabilityStatus } from '../types';
 import Button from './common/Button';
@@ -49,7 +50,9 @@ const BookingRow: React.FC<{ booking: Booking, tourist?: User, onRespond: (booki
 
 
 const GuideDashboardPage: React.FC<GuideDashboardPageProps> = ({ guideUser }) => {
-    const { bookings, allUsers, reviews } = useAppStore();
+    const bookings = useAppStore(state => state.bookings);
+    const allUsers = useAppStore(state => state.allUsers);
+    const reviews = useAppStore(state => state.reviews);
     const [activeTab, setActiveTab] = useState('dashboard');
 
     const guideBookings = useMemo(() => bookings.filter(b => b.guideId === guideUser.id), [bookings, guideUser.id]);

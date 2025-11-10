@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, ReactNode } from 'react';
 import { Page, DetailedItinerary, ToastMessage, User, Booking, Stay, Vendor, Guide, Verifiable, Review } from './types';
 import { useAuth } from './contexts/AuthContext';
@@ -52,7 +51,7 @@ const App: React.FC = () => {
     const { user, loading: authLoading } = useAuth();
     const isOnline = useOnlineStatus();
     const setData = useAppStore(state => state.setData);
-    const { allUsers } = useAppStore();
+    const allUsers = useAppStore(state => state.allUsers);
 
     // --- GLOBAL UI STATE ---
     const [dataLoading, setDataLoading] = useState(true);
@@ -85,13 +84,10 @@ const App: React.FC = () => {
     useEffect(() => {
         if (user && db) {
             setDataLoading(true);
-            // FIX: Use Firestore collection names. The type `string[]` prevents symbol conversion errors.
             const collections: string[] = ['guides', 'vendors', 'stays', 'users', 'bookings', 'reviews'];
             
             const unsubscribes = collections.map(col => {
-                // FIX: `col` is now guaranteed to be a string, no `as string` cast needed.
                 let query = db.collection(col);
-                // Rename 'users' collection to 'allUsers' in store
                 const storeKey = col === 'users' ? 'allUsers' : col;
 
                 return query.onSnapshot(

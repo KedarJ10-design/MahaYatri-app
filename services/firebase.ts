@@ -12,13 +12,9 @@ interface ImportMetaEnv {
     readonly VITE_FIREBASE_VAPID_KEY: string;
 }
 
-// FIX: Augment the global ImportMeta type to include the `env` property.
-// This is necessary for TypeScript to recognize `import.meta.env`.
-declare global {
-    interface ImportMeta {
-        readonly env: ImportMetaEnv;
-    }
-}
+// FIX: The global augmentation of `ImportMeta` was removed to resolve a type conflict
+// with Vite's built-in environment typings, which caused a "Subsequent property declarations"
+// error. The local `ImportMetaEnv` interface is kept for type casting.
 
 // Use the v8 compatibility layer (compat), which provides the v8 namespaced API.
 import firebase from 'firebase/compat/app';
@@ -29,7 +25,8 @@ import 'firebase/compat/functions';
 // Safely access environment variables, providing an empty object as a fallback.
 // This prevents runtime errors if the script is run in an environment where
 // Vite's environment variables are not injected.
-const env = ((import.meta && import.meta.env) ? import.meta.env : {}) as Partial<ImportMetaEnv>;
+// FIX: Correctly access Vite environment variables to resolve TypeScript error.
+const env: Partial<ImportMetaEnv> = (import.meta as any)?.env ?? {};
 
 // Your web app's Firebase configuration is now loaded from environment variables
 export const firebaseConfig = {

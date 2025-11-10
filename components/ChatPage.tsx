@@ -13,7 +13,7 @@ interface ChatPageProps {
 }
 
 const ChatPage: React.FC<ChatPageProps> = ({ currentUser }) => {
-  const { allUsers } = useAppStore();
+  const allUsers = useAppStore(state => state.allUsers);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -170,5 +170,4 @@ const ChatPage: React.FC<ChatPageProps> = ({ currentUser }) => {
   );
 };
 
-// FIX: Add default export to resolve import error in App.tsx.
 export default ChatPage;
